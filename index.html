@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>总平均分计算器</title>
+<script>
+// 尽早应用已保存的主题，避免页面闪烁
+try {
+  var t = localStorage.getItem("grade-calculator-theme");
+  if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+} catch (e) {}
+</script>
+<style>
+:root {
+  --bg: #f5f6f8; --card: #fff; --text: #1f2430; --muted: #6b7280;
+  --line: #e5e7eb; --accent: #2563eb; --accent-soft: #e8efff; --danger: #dc2626;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12141a; --card: #1b1e27; --text: #e8eaf0; --muted: #98a0b3;
+    --line: #2d3240; --accent: #6b9bff; --accent-soft: #232b44; --danger: #f87171;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12141a; --card: #1b1e27; --text: #e8eaf0; --muted: #98a0b3;
+  --line: #2d3240; --accent: #6b9bff; --accent-soft: #232b44; --danger: #f87171;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  line-height: 1.5;
+}
+body.locked { overflow: hidden; }
+header {
+  max-width: 900px; margin: 0 auto; padding: 24px 16px 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+h1 { margin: 0; font-size: 1.6rem; }
+h2 { margin: 0 0 12px; font-size: 1.1rem; }
+main { max-width: 900px; margin: 0 auto; padding: 8px 16px 24px; display: grid; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
+th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: .85rem; }
+td:first-child, th:first-child { text-align: left; }
+tfoot td { font-weight: 600; border-bottom: none; }
+input {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+}
+td input { width: 84px; text-align: center; }
+input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.subject-name { width: 120px; text-align: left; }
+.subject-periods { width: 72px; }
+.row-action-cell { position: relative; width: 64px; }
+.row-action-btn {
+  font: inherit; cursor: pointer; color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px;
+}
+.row-action-btn:hover { background: var(--accent-soft); }
+.row-action-menu {
+  position: fixed; z-index: 1000;
+  min-width: 160px; padding: 5px; display: none; flex-direction: column; gap: 3px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.row-action-menu.show { display: flex; }
+.row-action-menu button {
+  width: 100%; padding: 7px 9px; text-align: left; font: inherit;
+  color: var(--text); background: transparent; border: 0; border-radius: 5px;
+  cursor: pointer; white-space: nowrap;
+}
+.row-action-menu button:hover { background: var(--accent-soft); }
+.row-action-menu button.delete { color: var(--danger); }
+.hint { margin: 12px 0 0; font-size: .82rem; color: var(--muted); }
+
+/* 主题按钮 */
+#themeBtn {
+  flex-shrink: 0; width: 40px; height: 40px; padding: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; line-height: 1; cursor: pointer;
+  color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: 50%;
+}
+#themeBtn:hover { background: var(--accent-soft); }
+
+/* 可收起的区块 */
+details > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 1.1rem; font-weight: 600;
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::after {
+  content: ""; width: 8px; height: 8px; margin-right: 4px;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg); transition: transform .2s;
+}
+details[open] > summary::after { transform: rotate(-135deg); }
+details[open] > summary { margin-bottom: 12px; }
+
+.result .row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.result .row strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.result .final { border-bottom: none; background: var(--accent-soft); padding: 12px; border-radius: 8px; margin-top: 8px; }
+.result .final strong { font-size: 2rem; color: var(--accent); }
+#reset {
+  margin-top: 12px; font: inherit; cursor: pointer; color: var(--danger);
+  background: transparent; border: 1px solid var(--danger); border-radius: 6px; padding: 6px 14px;
+}
+#reset:hover { background: var(--danger); color: #fff; }
+
+/* 页脚 */
+footer { text-align: center; padding: 0 16px 40px; font-size: .82rem; color: var(--muted); }
+footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+/* 使用须知弹窗 */
+#termsMask {
+  position: fixed; inset: 0; z-index: 100; padding: 16px;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .55);
+}
+#termsMask.show { display: flex; }
+.terms {
+  width: 100%; max-width: 520px; max-height: 90vh;
+  display: flex; flex-direction: column;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+}
+.terms h3 { margin: 0; padding: 18px 20px 12px; font-size: 1.2rem; text-align: center; border-bottom: 1px solid var(--line); }
+.terms-body { padding: 14px 20px; overflow-y: auto; font-size: .92rem; }
+.terms-body .scope {
+  background: var(--accent-soft); color: var(--accent);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-weight: 600; text-align: center;
+}
+.terms-body ol { margin: 0; padding-left: 1.3em; }
+.terms-body li { margin-bottom: 8px; }
+.terms-body li b { color: var(--text); }
+.terms-foot { padding: 12px 20px 18px; border-top: 1px solid var(--line); }
+.terms-msg { min-height: 1.3em; margin: 0 0 8px; text-align: center; font-size: .85rem; color: var(--danger); }
+.terms-btns { display: flex; gap: 10px; }
+.terms-btns button {
+  flex: 1; font: inherit; font-size: 1rem; padding: 10px 0; cursor: pointer; border-radius: 8px;
+}
+#disagreeBtn { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+#disagreeBtn:hover { background: var(--bg); }
+#agreeBtn { color: #fff; background: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
+#agreeBtn:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+<header>
+  <h1>总平均分计算器</h1>
+  <button id="themeBtn" type="button" aria-label="切换黑白主题" title="切换黑白主题">🌙</button>
+</header>
+
+<main>
+  <section class="card">
+    <h2>各科成绩</h2>
+    <div class="table-wrap">
+      <table id="scores">
+        <thead>
+          <tr><th>科目</th><th>上半年</th><th>下半年</th><th>平均</th><th>周节数</th><th>积分</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr><td colspan="4">合计</td><td id="totalPeriods">0</td><td id="totalPoints">0</td></tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="hint">下半年全部留空时，平均 = 上半年；填写下半年后，平均 = (上半年 + 下半年) ÷ 2。</p>
+  </section>
+
+  <section class="card">
+    <details id="leaveBox" open>
+      <summary>请假 / 缺席（节数）</summary>
+      <div class="table-wrap">
+        <table id="leaves">
+          <thead>
+            <tr><th>类别</th><th>上学年</th><th>下学年</th><th>总数</th><th>计算节数</th><th>每节扣分</th><th>小计</th></tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr><td colspan="6">缺席扣分总计</td><td id="totalDeduct">0</td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="hint">病假累计超过 20 节的部分才扣分；丧假、公假、特假、特病不扣分。</p>
+    </details>
+  </section>
+
+  <section class="card result">
+    <div class="row"><span>平均分数</span><strong id="avg">0.00</strong></div>
+    <div class="row"><span>缺席扣分</span><strong id="deduct">0.00</strong></div>
+    <div class="row final"><span>实得分数</span><strong id="final">0.00</strong></div>
+    <p class="hint">误差为 ±3</p>
+    <button id="reset" type="button">清空全部</button>
+  </section>
+</main>
+
+<footer>
+  总平均分计算器 ·
+  <a id="termsLink">使用须知</a>
+</footer>
+
+<!-- 使用须知弹窗 -->
+<div id="termsMask" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
+  <div class="terms">
+    <h3 id="termsTitle">使用须知</h3>
+    <div class="terms-body">
+      <div class="scope">本计算器可供各年段使用，请按实际情况填写</div>
+      <ol>
+        <li><b>适用范围：</b>本工具可供各年段使用。请根据自己所在的年段，自行填写科目名称、上下半年成绩及每周节数；如科目数量不同，可通过每行右侧的「⋮」按钮新增或删除科目。请假扣分则按照本工具列出的规则计算。</li>
+        <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。若所有科目的下半年栏都留空，系统会直接使用上半年成绩计算平均；只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均，因此请尽量把每一科的上下半年成绩填写完整，再查看总平均分。</li>
+        <li><b>请假 / 缺席（节数）：</b>此项可填可不填，没有请假或缺席可直接留空。如需填写，一律以<b>节数</b>计算，请按节数填写，不要按天数填写。</li>
+        <li><b>结果仅供参考：</b>计算结果可能与实际有误差（±3），最终成绩请以学校正式公布的为准。</li>
+        <li><b>数据隐私：</b>你输入的所有成绩和请假数据只保存在你自己的浏览器中，不会上传到任何服务器。清除浏览器数据后将一并丢失。</li>
+        <li><b>正确使用：</b>请如实填写数据，不得将本工具用于伪造、篡改成绩等用途。</li>
+        <li><b>免责声明：</b>因输入错误、规则变动或使用本工具所产生的任何后果，由使用者自行承担。</li>
+      </ol>
+    </div>
+    <div class="terms-foot">
+      <p class="terms-msg" id="termsMsg"></p>
+      <div class="terms-btns">
+        <button id="disagreeBtn" type="button">不同意</button>
+        <button id="agreeBtn" type="button">同意并继续</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 配置：与 Excel 表一致 =====
+const DEFAULT_SUBJECTS = [
+  { name: "", periods: 0 }, { name: "", periods: 0 },
+  { name: "", periods: 0 }, { name: "", periods: 0 },
+  { name: "", periods: 0 }, { name: "", periods: 0 },
+  { name: "", periods: 0 }, { name: "", periods: 0 },
+  { name: "", periods: 0 }, { name: "", periods: 0 },
+  { name: "", periods: 0 }, { name: "", periods: 0 },
+];
+
+// rate = 每节扣分；free = 免扣节数（病假超过 20 节才扣）；rate 为 0 表示不扣分
+const LEAVES = [
+  { name: "病假", rate: 0.001, free: 20 },
+  { name: "事假", rate: 0.01 },
+  { name: "丧假", rate: 0 },
+  { name: "迟到", rate: 0.02 },
+  { name: "旷课", rate: 0.1 },
+  { name: "公假", rate: 0 },
+  { name: "特假", rate: 0 },
+  { name: "特病", rate: 0 },
+];
+
+const STORAGE_KEY = "grade-calculator-v1";
+const SUBJECT_STORAGE_KEY = "grade-calculator-subjects-v2";
+const OPEN_KEY = "grade-calculator-leave-open";
+const THEME_KEY = "grade-calculator-theme";
+const $ = (id) => document.getElementById(id);
+const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
+
+// 成绩范围限制：只允许 0 至 100 分
+function normalizeScore(value) {
+  if (value === "" || value == null) return "";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  return String(Math.min(100, Math.max(0, n)));
+}
+
+let nextSubjectId = 1;
+let subjects = DEFAULT_SUBJECTS.map((s) => ({
+  id: nextSubjectId++, name: s.name, periods: s.periods, s1: "", s2: ""
+}));
+
+const scoreBody = $("scores").querySelector("tbody");
+const leaveBody = $("leaves").querySelector("tbody");
+
+// ===== 渲染各科成绩表格 =====
+function renderSubjects() {
+  scoreBody.innerHTML = "";
+  document.querySelectorAll(".row-action-menu").forEach((menu) => menu.remove());
+
+  subjects.forEach((subject) => {
+    const tr = document.createElement("tr");
+    tr.dataset.subjectId = subject.id;
+
+    const nameCell = document.createElement("td");
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.className = "subject-name";
+    nameInput.placeholder = "自行输入科目";
+    nameInput.value = subject.name;
+    nameInput.dataset.field = "name";
+    nameCell.appendChild(nameInput);
+
+    const s1Cell = document.createElement("td");
+    const s1Input = document.createElement("input");
+    s1Input.type = "number";
+    s1Input.min = "0";
+    s1Input.max = "100";
+    s1Input.step = "any";
+    s1Input.value = subject.s1;
+    s1Input.dataset.field = "s1";
+    s1Cell.appendChild(s1Input);
+
+    const s2Cell = document.createElement("td");
+    const s2Input = document.createElement("input");
+    s2Input.type = "number";
+    s2Input.min = "0";
+    s2Input.max = "100";
+    s2Input.step = "any";
+    s2Input.value = subject.s2;
+    s2Input.dataset.field = "s2";
+    s2Cell.appendChild(s2Input);
+
+    const avgCell = document.createElement("td");
+    avgCell.className = "subject-average";
+    avgCell.textContent = "0.00";
+
+    const periodsCell = document.createElement("td");
+    const periodsInput = document.createElement("input");
+    periodsInput.type = "number";
+    periodsInput.min = "0";
+    periodsInput.step = "any";
+    periodsInput.className = "subject-periods";
+    periodsInput.placeholder = "待输入";
+    periodsInput.value = subject.periods || "";
+    periodsInput.dataset.field = "periods";
+    periodsCell.appendChild(periodsInput);
+
+    const pointsCell = document.createElement("td");
+    pointsCell.className = "subject-points";
+    pointsCell.textContent = "0.00";
+
+    const actionCell = document.createElement("td");
+    actionCell.className = "row-action-cell";
+
+    const actionButton = document.createElement("button");
+    actionButton.type = "button";
+    actionButton.className = "row-action-btn";
+    actionButton.textContent = "⋮";
+    actionButton.setAttribute("aria-label", `更多选项：${subject.name || "未命名科目"}`);
+    const menu = document.createElement("div");
+    menu.className = "row-action-menu";
+
+    actionButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const wasOpen = menu.classList.contains("show");
+      document.querySelectorAll(".row-action-menu.show").forEach((m) => m.classList.remove("show"));
+      if (wasOpen) return;
+
+      // 将菜单放到页面最上层，避免被表格边界或滚动区域遮挡
+      menu.classList.add("show");
+      const buttonRect = actionButton.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const margin = 8;
+      const left = Math.max(margin, Math.min(
+        buttonRect.right - menuRect.width,
+        window.innerWidth - menuRect.width - margin
+      ));
+      const belowTop = buttonRect.bottom + 4;
+      const aboveTop = buttonRect.top - menuRect.height - 4;
+      const top = belowTop + menuRect.height <= window.innerHeight - margin
+        ? belowTop
+        : Math.max(margin, aboveTop);
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+    });
+
+    const addAbove = document.createElement("button");
+    addAbove.type = "button";
+    addAbove.textContent = "在上面加一行";
+    addAbove.addEventListener("click", () => insertSubject(subject.id, "above"));
+
+    const addBelow = document.createElement("button");
+    addBelow.type = "button";
+    addBelow.textContent = "在下面加一行";
+    addBelow.setAttribute("aria-label", `在「${subject.name || "未命名科目"}」下面加一行`);
+    addBelow.addEventListener("click", () => insertSubject(subject.id, "below"));
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "delete";
+    remove.textContent = "删除这一行";
+    remove.addEventListener("click", () => deleteSubject(subject.id));
+
+    menu.append(addAbove, addBelow, remove);
+    actionCell.append(actionButton);
+    document.body.appendChild(menu);
+    tr.append(nameCell, s1Cell, s2Cell, avgCell, periodsCell, pointsCell, actionCell);
+    scoreBody.appendChild(tr);
+  });
+
+  calculate();
+}
+
+function insertSubject(targetId, position) {
+  const index = subjects.findIndex((s) => s.id === targetId);
+  if (index < 0) return;
+
+  const newSubject = {
+    id: nextSubjectId++, name: "", periods: 0, s1: "", s2: ""
+  };
+  subjects.splice(position === "above" ? index : index + 1, 0, newSubject);
+  renderSubjects();
+  save();
+  const newRow = scoreBody.querySelector(`[data-subject-id="${newSubject.id}"]`);
+  if (newRow) newRow.querySelector('[data-field="name"]').focus();
+}
+
+function deleteSubject(subjectId) {
+  const subject = subjects.find((s) => s.id === subjectId);
+  if (!subject) return;
+  if (!confirm(`确定删除「${subject.name || "未命名科目"}」这一行吗？`)) return;
+
+  subjects = subjects.filter((s) => s.id !== subjectId);
+  renderSubjects();
+  save();
+}
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".row-action-cell") && !event.target.closest(".row-action-menu")) {
+    document.querySelectorAll(".row-action-menu.show").forEach((menu) => {
+      menu.classList.remove("show");
+    });
+  }
+});
+
+// 页面滚动或窗口尺寸改变时关闭菜单，避免菜单与按钮位置脱离
+window.addEventListener("scroll", () => {
+  document.querySelectorAll(".row-action-menu.show").forEach((menu) => menu.classList.remove("show"));
+}, true);
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".row-action-menu.show").forEach((menu) => menu.classList.remove("show"));
+});
+
+LEAVES.forEach((l, i) => {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${l.name}</td>
+    <td><input type="number" min="0" step="any" data-k="l1-${i}"></td>
+    <td><input type="number" min="0" step="any" data-k="l2-${i}"></td>
+    <td id="lt-${i}">0</td>
+    <td id="lc-${i}">0</td>
+    <td>${l.rate ? l.rate : "不扣分"}</td>
+    <td id="ld-${i}">0.00</td>`;
+  leaveBody.appendChild(tr);
+});
+
+// ===== 计算 =====
+function calculate() {
+  const totalPeriods = subjects.reduce((sum, s) => sum + num(s.periods), 0);
+
+  // 保留原算法：下半年全部为 0 / 空 → 除以 1，否则每科上下半年相加后除以 2
+  const secondTotal = subjects.reduce((sum, s) => sum + num(s.s2), 0);
+  const divisor = secondTotal === 0 ? 1 : 2;
+
+  let points = 0;
+  subjects.forEach((subject) => {
+    const avg = (num(subject.s1) + num(subject.s2)) / divisor;
+    const pt = avg * num(subject.periods);
+    points += pt;
+
+    const row = scoreBody.querySelector(`[data-subject-id="${subject.id}"]`);
+    if (row) {
+      row.querySelector(".subject-average").textContent = fmt(avg);
+      row.querySelector(".subject-points").textContent = fmt(pt);
+    }
+  });
+
+  const average = totalPeriods === 0 ? 0 : points / totalPeriods;
+  $("totalPeriods").textContent = fmt(totalPeriods).replace(/\.00$/, "");
+  $("totalPoints").textContent = fmt(points);
+
+  let deduct = 0;
+  LEAVES.forEach((l, i) => {
+    const total = num(document.querySelector(`[data-k="l1-${i}"]`).value) +
+                  num(document.querySelector(`[data-k="l2-${i}"]`).value);
+    const counted = l.free ? Math.max(total - l.free, 0) : total;
+    const sub = l.rate * counted;
+    deduct += sub;
+    $(`lt-${i}`).textContent = total;
+    $(`lc-${i}`).textContent = l.rate ? counted : "-";
+    $(`ld-${i}`).textContent = l.rate ? fmt(sub) : "-";
+  });
+  $("totalDeduct").textContent = fmt(deduct);
+
+  $("avg").textContent = fmt(average);
+  $("deduct").textContent = fmt(deduct);
+  $("final").textContent = fmt(average - deduct);
+}
+
+// ===== 本地保存 =====
+function save() {
+  const leaveData = {};
+  document.querySelectorAll("#leaves input").forEach((el) => {
+    leaveData[el.dataset.k] = el.value;
+  });
+  try {
+    localStorage.setItem(SUBJECT_STORAGE_KEY, JSON.stringify(subjects));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(leaveData));
+  } catch (e) {}
+}
+
+function load() {
+  try {
+    const savedSubjects = localStorage.getItem(SUBJECT_STORAGE_KEY);
+    if (savedSubjects) {
+      const parsed = JSON.parse(savedSubjects);
+      if (Array.isArray(parsed)) {
+        subjects = parsed.map((s) => ({
+          id: Number.isFinite(Number(s.id)) ? Number(s.id) : nextSubjectId++,
+          name: String(s.name ?? ""),
+          periods: num(s.periods),
+          s1: normalizeScore(s.s1 ?? ""),
+          s2: normalizeScore(s.s2 ?? "")
+        }));
+        nextSubjectId = Math.max(0, ...subjects.map((s) => s.id)) + 1;
+      }
+    } else {
+      // 兼容旧版本：读取原本按科目序号保存的成绩
+      const oldData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      subjects.forEach((s, i) => {
+        s.s1 = normalizeScore(oldData[`s1-${i}`] ?? "");
+        s.s2 = normalizeScore(oldData[`s2-${i}`] ?? "");
+      });
+    }
+
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    document.querySelectorAll("#leaves input").forEach((el) => {
+      if (el.dataset.k in data) el.value = data[el.dataset.k];
+    });
+
+    if (localStorage.getItem(OPEN_KEY) === "0") $("leaveBox").open = false;
+  } catch (e) {}
+}
+
+// ===== 主题切换 =====
+const root = document.documentElement;
+const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+function isDark() {
+  const t = root.getAttribute("data-theme");
+  return t ? t === "dark" : systemDark.matches;
+}
+function updateThemeBtn() {
+  // 深色时显示太阳（点击切到浅色），浅色时显示月亮（点击切到深色）
+  $("themeBtn").textContent = isDark() ? "☀️" : "🌙";
+}
+$("themeBtn").addEventListener("click", () => {
+  const next = isDark() ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+  updateThemeBtn();
+});
+systemDark.addEventListener("change", updateThemeBtn);
+updateThemeBtn();
+
+// ===== 使用须知（每次打开 / 刷新都会弹出）=====
+function showTerms() {
+  $("termsMsg").textContent = "";
+  $("termsMask").classList.add("show");
+  document.body.classList.add("locked");
+}
+function hideTerms() {
+  $("termsMask").classList.remove("show");
+  document.body.classList.remove("locked");
+}
+$("agreeBtn").addEventListener("click", hideTerms);
+$("disagreeBtn").addEventListener("click", () => {
+  $("termsMsg").textContent = "需要同意使用须知后才能使用本计算器。";
+});
+$("termsLink").addEventListener("click", showTerms);
+
+showTerms(); // 不再记住同意状态，每次加载页面都弹出
+
+// ===== 成绩表输入、请假输入与清空 =====
+scoreBody.addEventListener("input", (event) => {
+  const row = event.target.closest("tr[data-subject-id]");
+  if (!row) return;
+  const subject = subjects.find((s) => s.id === Number(row.dataset.subjectId));
+  if (!subject) return;
+
+  const field = event.target.dataset.field;
+  if (field === "name") subject.name = event.target.value;
+  if (field === "periods") subject.periods = num(event.target.value);
+  if (field === "s1" || field === "s2") {
+    const normalized = normalizeScore(event.target.value);
+    if (event.target.value !== normalized) event.target.value = normalized;
+    subject[field] = normalized;
+  }
+
+  calculate();
+  save();
+});
+
+document.addEventListener("input", (event) => {
+  if (event.target.closest("#leaves")) {
+    calculate();
+    save();
+  }
+});
+
+$("leaveBox").addEventListener("toggle", () => {
+  try { localStorage.setItem(OPEN_KEY, $("leaveBox").open ? "1" : "0"); } catch (e) {}
+});
+
+$("reset").addEventListener("click", () => {
+  if (!confirm("确定清空所有成绩和请假数据？科目名称及周节数会保留。")) return;
+  subjects.forEach((s) => { s.s1 = ""; s.s2 = ""; });
+  document.querySelectorAll("#leaves input").forEach((el) => (el.value = ""));
+  renderSubjects();
+  calculate();
+  save();
+});
+
+load();
+renderSubjects();
+calculate();
+</script>
+</body>
+</html>
