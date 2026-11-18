@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>总平均分计算器</title>
 <script>
-// 尽早应用已保存的主题，避免页面闪烁
+// 尽早应用已保存的主题，避免页面闪烁（使用唯一前缀，与其他网站隔离）
 try {
-  var t = localStorage.getItem("grade-calculator-theme");
+  var t = localStorage.getItem("tavgcalc-9f3a7c-theme");
   if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
 } catch (e) {}
 </script>
@@ -274,10 +274,13 @@ const LEAVES = [
   { name: "特病", rate: 0 },
 ];
 
-const STORAGE_KEY = "grade-calculator-v1";
-const SUBJECT_STORAGE_KEY = "grade-calculator-subjects-v2";
-const OPEN_KEY = "grade-calculator-leave-open";
-const THEME_KEY = "grade-calculator-theme";
+// ===== 存储键：加唯一前缀，避免与其他网站/页面共用数据 =====
+const STORAGE_PREFIX = "tavgcalc-9f3a7c-";
+const STORAGE_KEY = STORAGE_PREFIX + "leave-v1";
+const SUBJECT_STORAGE_KEY = STORAGE_PREFIX + "subjects-v2";
+const OPEN_KEY = STORAGE_PREFIX + "leave-open";
+const THEME_KEY = STORAGE_PREFIX + "theme";
+
 const $ = (id) => document.getElementById(id);
 const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
 const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
@@ -541,8 +544,8 @@ function load() {
         nextSubjectId = Math.max(0, ...subjects.map((s) => s.id)) + 1;
       }
     } else {
-      // 兼容旧版本：读取原本按科目序号保存的成绩
-      const oldData = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      // 兼容旧版本：读取原本按科目序号保存的成绩（旧键名，仅首次迁移用）
+      const oldData = JSON.parse(localStorage.getItem("grade-calculator-v1") || "{}");
       subjects.forEach((s, i) => {
         s.s1 = normalizeScore(oldData[`s1-${i}`] ?? "");
         s.s2 = normalizeScore(oldData[`s2-${i}`] ?? "");
