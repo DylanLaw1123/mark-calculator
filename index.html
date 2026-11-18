@@ -139,16 +139,33 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 .terms-body ol { margin: 0; padding-left: 1.3em; }
 .terms-body li { margin-bottom: 8px; }
 .terms-body li b { color: var(--text); }
+.terms-body li.sub-item { margin-bottom: 6px; }
+.terms-body li.sub-item::marker { color: var(--muted); }
 .terms-foot { padding: 12px 20px 18px; border-top: 1px solid var(--line); }
 .terms-msg { min-height: 1.3em; margin: 0 0 8px; text-align: center; font-size: .85rem; color: var(--danger); }
 .terms-btns { display: flex; gap: 10px; }
 .terms-btns button {
   flex: 1; font: inherit; font-size: 1rem; padding: 10px 0; cursor: pointer; border-radius: 8px;
+  transition: background .15s, filter .15s, opacity .15s;
 }
 #disagreeBtn { color: var(--muted); background: transparent; border: 1px solid var(--line); }
 #disagreeBtn:hover { background: var(--bg); }
 #agreeBtn { color: #fff; background: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
-#agreeBtn:hover { filter: brightness(1.1); }
+#agreeBtn:hover:not(:disabled) { filter: brightness(1.1); }
+#agreeBtn:disabled {
+  background: var(--muted);
+  border-color: var(--muted);
+  opacity: .55;
+  cursor: not-allowed;
+}
+/* 滚动提示 */
+.scroll-hint {
+  text-align: center;
+  font-size: .78rem;
+  color: var(--muted);
+  padding: 4px 0 0;
+  margin: 0;
+}
 </style>
 </head>
 <body>
@@ -210,11 +227,12 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 <div id="termsMask" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
   <div class="terms">
     <h3 id="termsTitle">使用须知</h3>
-    <div class="terms-body">
+    <div class="terms-body" id="termsBody">
       <div class="scope">本计算器可供各年段使用，请按实际情况填写</div>
       <ol>
         <li><b>适用范围：</b>本工具可供各年段使用。请根据自己所在的年段，自行填写科目名称、上下半年成绩及每周节数；如科目数量不同，可通过每行右侧的「⋮」按钮新增或删除科目。请假扣分则按照本工具列出的规则计算。</li>
-        <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。若所有科目的下半年栏都留空，系统会直接使用上半年成绩计算平均；只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均，因此请尽量把每一科的上下半年成绩填写完整，再查看总平均分。</li>
+        <li><b>上半年成绩：</b>请在各科「上半年」栏填写。如果下半年成绩尚未公布或没有下半年成绩，可将下半年栏全部留空，系统会直接使用上半年成绩计算平均。</li>
+        <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均，因此请尽量把每一科的上下半年成绩填写完整，再查看总平均分。</li>
         <li><b>请假 / 缺席（节数）：</b>此项可填可不填，没有请假或缺席可直接留空。如需填写，一律以<b>节数</b>计算，请按节数填写，不要按天数填写。</li>
         <li><b>结果仅供参考：</b>计算结果可能与实际有误差（±3），最终成绩请以学校正式公布的为准。</li>
         <li><b>数据隐私：</b>你输入的所有成绩和请假数据只保存在你自己的浏览器中，不会上传到任何服务器。清除浏览器数据后将一并丢失。</li>
@@ -223,10 +241,11 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
       </ol>
     </div>
     <div class="terms-foot">
+      <p class="scroll-hint" id="scrollHint">↓ 请向下滚动阅读全部内容 ↓</p>
       <p class="terms-msg" id="termsMsg"></p>
       <div class="terms-btns">
         <button id="disagreeBtn" type="button">不同意</button>
-        <button id="agreeBtn" type="button">同意并继续</button>
+        <button id="agreeBtn" type="button" disabled>同意并继续</button>
       </div>
     </div>
   </div>
@@ -560,23 +579,65 @@ $("themeBtn").addEventListener("click", () => {
 systemDark.addEventListener("change", updateThemeBtn);
 updateThemeBtn();
 
-// ===== 使用须知（每次打开 / 刷新都会弹出）=====
-function showTerms() {
+// ===== 使用须知（每次打开 / 刷新都会弹出，必须滚动到底部才能同意）=====
+const termsMask = $("termsMask");
+const termsBody = $("termsBody");
+const agreeBtn = $("agreeBtn");
+const scrollHint = $("scrollHint");
+
+// 检查是否滚动到底部，并更新同意按钮状态
+function checkTermsScroll() {
+  // 内容未溢出（或几乎未溢出）时直接允许
+  const scrollable = termsBody.scrollHeight > termsBody.clientHeight + 2;
+  if (!scrollable) {
+    agreeBtn.disabled = false;
+    scrollHint.textContent = "已阅读全部内容";
+    return;
+  }
+  const atBottom = termsBody.scrollTop + termsBody.clientHeight >= termsBody.scrollHeight - 4;
+  if (atBottom) {
+    agreeBtn.disabled = false;
+    scrollHint.textContent = "已阅读全部内容";
+  } else {
+    agreeBtn.disabled = true;
+    scrollHint.textContent = "↓ 请向下滚动阅读全部内容 ↓";
+  }
+}
+
+// 每次打开弹窗都重置滚动和按钮状态
+function resetTermsState() {
+  termsBody.scrollTop = 0;
   $("termsMsg").textContent = "";
-  $("termsMask").classList.add("show");
+  agreeBtn.disabled = true;
+  // 等布局完成后检查一次
+  requestAnimationFrame(checkTermsScroll);
+}
+
+function showTerms() {
+  termsMask.classList.add("show");
   document.body.classList.add("locked");
+  resetTermsState();
 }
 function hideTerms() {
-  $("termsMask").classList.remove("show");
+  termsMask.classList.remove("show");
   document.body.classList.remove("locked");
 }
-$("agreeBtn").addEventListener("click", hideTerms);
+
+// 监听滚动事件
+termsBody.addEventListener("scroll", checkTermsScroll);
+// 窗口大小变化时重新检查（可能从可滚动变为不可滚动）
+window.addEventListener("resize", () => {
+  if (termsMask.classList.contains("show")) checkTermsScroll();
+});
+
+agreeBtn.addEventListener("click", hideTerms);
 $("disagreeBtn").addEventListener("click", () => {
   $("termsMsg").textContent = "需要同意使用须知后才能使用本计算器。";
 });
 $("termsLink").addEventListener("click", showTerms);
 
-showTerms(); // 不再记住同意状态，每次加载页面都弹出
+// 首次加载时显示使用须知
+showTerms();
 
 // ===== 成绩表输入、请假输入与清空 =====
 scoreBody.addEventListener("input", (event) => {
@@ -618,6 +679,7 @@ $("reset").addEventListener("click", () => {
   save();
 });
 
+// 初始化数据
 load();
 renderSubjects();
 calculate();
