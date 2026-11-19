@@ -190,7 +190,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-weight: 600; text-align: center;
 }
 .terms-body ol { margin: 0; padding-left: 1.3em; }
-.terms-body li { margin-bottom: 8px; }
+.terms-body li { margin-bottom: 10px; }
 .terms-body li b { color: var(--text); }
 .terms-section {
   margin-top: 14px;
@@ -230,7 +230,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   margin: 0;
 }
 
-/* ===== 科目选择面板 ===== */
+/* 科目选择面板 */
 .subject-picker-mask {
   position: fixed; inset: 0; z-index: 120;
   background: rgba(0, 0, 0, .5);
@@ -285,7 +285,6 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   border-color: var(--accent);
 }
 
-/* 当前正在编辑的这一行已选中的科目：深色高亮 + 勾号 */
 .picker-item.current-selected {
   background: var(--accent);
   color: #fff;
@@ -298,7 +297,6 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   font-weight: 700;
 }
 
-/* 已被其他行选走（不可再选）的科目：置灰、禁用 */
 .picker-item.used-disabled {
   background: var(--bg);
   color: var(--muted);
@@ -504,7 +502,15 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
     <div class="terms-body" id="termsBody">
       <div class="scope">本计算器可供各年段使用，请按实际情况填写</div>
       <ol>
-        <li><b>适用范围：</b>本工具可供各年段使用。请根据自己所在的年段，自行填写科目名称、上下半年成绩及每周节数；点击科目输入框会弹出预设科目选择面板，可直接点选，也可在搜索框输入自定义科目名称。已选定的科目再次点击可以重新选择或修改；已经被其他行选过的预设科目会置灰显示，不可重复选择。如科目数量不同，可通过每行右侧的「⋮」按钮新增或删除科目。</li>
+        <li><b>适用范围：</b>本工具可供各年段使用。请根据自己所在的年段，自行填写科目名称、上下半年成绩及每周节数；如科目数量不同，可通过每行右侧的「⋮」按钮新增或删除科目。</li>
+        <li><b>科目选择面板的使用：</b>点击任意一行的「科目输入框」，会弹出选择面板。面板中展示了所有预设科目，您可以直接点击点选；面板顶部的搜索框也支持直接输入自定义的科目名称。</li>
+        <li><b>科目选择不可重复：</b>为避免成绩统计混乱，同一个科目不能被两行同时选择。
+          <ul style="margin-top: 6px; padding-left: 1.2em; font-size: .9em; line-height: 1.6;">
+            <li><span style="color: var(--accent); font-weight: bold;">🔵 当前选中：</span>如果您点击的是已经选好科目的输入框，面板中该科目会显示为<b>深蓝色并带有 ✓ 标记</b>，表示这是当前这一行正在使用的科目。</li>
+            <li style="margin-top: 4px;"><span style="color: var(--muted); font-weight: bold;">⚪ 已被占用（不可选）：</span>如果某个预设科目已经被表格中其他行选走，它会在面板中显示为<b>灰色、带删除线且无法点击</b>的状态。这代表您不能在这里重复选择它，除非您先去其他行把它改掉。</li>
+            <li style="margin-top: 4px;"><span style="color: var(--danger); font-weight: bold;">🚫 自定义拦截：</span>如果您在搜索框中手动输入了一个已经被其他行占用的名称，“确定”按钮会自动变为不可点，防止产生冲突。</li>
+          </ul>
+        </li>
         <li><b>上半年成绩：</b>请在各科「上半年」栏填写。如果下半年成绩尚未公布或没有下半年成绩，可将下半年栏全部留空，系统会直接使用上半年成绩计算平均。</li>
         <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均（四舍五入到整数），因此请尽量把每一科的上下半年成绩填写完整，再查看总平均分。</li>
         <li><b>请假 / 缺席（节数）：</b>此项可填可不填，没有请假或缺席可直接留空。如需填写，一律以<b>节数</b>计算，请按节数填写，不要按天数填写。</li>
@@ -512,7 +518,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
       </ol>
       <div class="terms-section">
         <p class="terms-section-title">隐私与使用规范</p>
-        <ol start="6">
+        <ol start="8">
           <li><b>数据隐私：</b>你输入的所有成绩和请假数据只保存在你自己的浏览器中，不会上传到任何服务器。清除浏览器数据后将一并丢失。</li>
           <li><b>正确使用：</b>请如实填写数据，不得将本工具用于伪造、篡改成绩等用途。</li>
           <li><b>免责声明：</b>因输入错误、规则变动或使用本工具所产生的任何后果，由使用者自行承担。</li>
@@ -617,7 +623,6 @@ const pickerSearchInput = $("pickerSearchInput");
 const pickerConfirmBtn = $("pickerConfirmBtn");
 const pickerCancelBtn = $("pickerCancelBtn");
 
-// 收集“其他行”已经使用的科目名称（用于禁用）
 function getUsedSubjectNames(excludeSubjectId) {
   const used = new Set();
   subjects.forEach((s) => {
@@ -629,7 +634,6 @@ function getUsedSubjectNames(excludeSubjectId) {
 }
 
 function renderPickerItems(filterText = "") {
-  // 如果 filterText 为空，显示全部；否则根据关键词过滤
   const keyword = filterText.trim().toLowerCase();
   const filtered = keyword
     ? PRESET_SUBJECTS.filter((name) => name.toLowerCase().includes(keyword))
@@ -665,7 +669,6 @@ function renderPickerItems(filterText = "") {
       } else {
         btn.addEventListener("click", () => {
           pickerSearchInput.value = name;
-          // 点选后不过滤列表，仍然显示全部（保持您要求的能看到其他选项）
           renderPickerItems("");
           pickerConfirmBtn.focus();
         });
@@ -699,7 +702,6 @@ function openSubjectPicker(inputEl, subjectId) {
   currentPickerSubjectId = subjectId;
   pickerSelectedValue = inputEl.value.trim() || "";
   pickerSearchInput.value = pickerSelectedValue;
-  // 打开面板时，如果是预设科目，显示全部列表（不清空搜索框）
   renderPickerItems("");
   pickerMask.classList.add("show");
   document.body.classList.add("locked");
@@ -740,7 +742,6 @@ pickerMask.addEventListener("click", (e) => {
 pickerCancelBtn.addEventListener("click", closeSubjectPicker);
 pickerConfirmBtn.addEventListener("click", confirmSubjectPicker);
 pickerSearchInput.addEventListener("input", () => {
-  // 用户手动输入时，根据输入内容过滤列表
   renderPickerItems(pickerSearchInput.value);
 });
 pickerSearchInput.addEventListener("keydown", (e) => {
