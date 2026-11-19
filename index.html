@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>总平均分计算器</title>
+<title>总平均分计算器 · 科目选择面板</title>
 <script>
-// 尽早应用已保存的主题，避免页面闪烁（使用唯一前缀，与其他网站隔离）
 try {
   var t = localStorage.getItem("tavgcalc-9f3a7c-theme");
   if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
@@ -59,13 +58,19 @@ th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--line);
 th { color: var(--muted); font-weight: 500; font-size: .85rem; }
 td:first-child, th:first-child { text-align: left; }
 tfoot td { font-weight: 600; border-bottom: none; }
-input {
+input, select {
   font: inherit; color: var(--text); background: var(--bg);
   border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
 }
 td input { width: 84px; text-align: center; }
-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-.subject-name { width: 120px; text-align: left; }
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.subject-name {
+  width: 180px; text-align: left;
+  cursor: pointer;
+}
+.subject-name::placeholder { color: var(--muted); opacity: .7; }
+
 .subject-periods { width: 72px; }
 .row-action-cell { position: relative; width: 64px; }
 .row-action-btn {
@@ -89,7 +94,6 @@ input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .row-action-menu button.delete { color: var(--danger); }
 .hint { margin: 12px 0 0; font-size: .82rem; color: var(--muted); }
 
-/* 通用操作弹窗 */
 .action-dialog-mask {
   position: fixed; inset: 0; z-index: 110; padding: 16px;
   display: none; align-items: center; justify-content: center;
@@ -122,8 +126,6 @@ input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   border: 1px solid var(--line); border-radius: 8px;
 }
 .action-dialog .cancel-btn:hover { background: var(--bg); }
-
-/* 删除类二次确认（红色确认按钮） */
 .action-dialog .confirm-danger {
   width: 100%; font: inherit; cursor: pointer; font-weight: 600;
   padding: 10px 0; margin-bottom: 8px;
@@ -132,7 +134,6 @@ input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 }
 .action-dialog .confirm-danger:hover { filter: brightness(1.08); }
 
-/* 主题按钮 */
 #themeBtn {
   flex-shrink: 0; width: 40px; height: 40px; padding: 0; margin: 0;
   display: flex; align-items: center; justify-content: center;
@@ -142,7 +143,6 @@ input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 }
 #themeBtn:hover { background: var(--accent-soft); }
 
-/* 可收起的区块 */
 details > summary {
   list-style: none; cursor: pointer; user-select: none;
   display: flex; align-items: center; justify-content: space-between;
@@ -167,11 +167,9 @@ details[open] > summary { margin-bottom: 12px; }
 }
 #reset:hover { background: var(--danger); color: #fff; }
 
-/* 页脚 */
 footer { text-align: center; padding: 0 16px 40px; font-size: .82rem; color: var(--muted); }
 footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
-/* 使用须知弹窗 */
 #termsMask {
   position: fixed; inset: 0; z-index: 100; padding: 16px;
   display: none; align-items: center; justify-content: center;
@@ -194,7 +192,6 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 .terms-body ol { margin: 0; padding-left: 1.3em; }
 .terms-body li { margin-bottom: 8px; }
 .terms-body li b { color: var(--text); }
-/* 小节分组 */
 .terms-section {
   margin-top: 14px;
   padding-top: 12px;
@@ -225,13 +222,142 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   opacity: .55;
   cursor: not-allowed;
 }
-/* 滚动提示 */
 .scroll-hint {
   text-align: center;
   font-size: .78rem;
   color: var(--muted);
   padding: 4px 0 0;
   margin: 0;
+}
+
+/* ===== 科目选择面板 ===== */
+.subject-picker-mask {
+  position: fixed; inset: 0; z-index: 120;
+  background: rgba(0, 0, 0, .5);
+  display: none; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.subject-picker-mask.show { display: flex; }
+.subject-picker {
+  width: 100%; max-width: 420px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+  display: flex; flex-direction: column;
+  max-height: 90vh;
+}
+.subject-picker h3 {
+  margin: 0; padding: 16px 18px 8px;
+  font-size: 1.1rem; text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+.picker-search-wrap {
+  padding: 12px 16px 6px;
+}
+.picker-search-wrap input {
+  width: 100%; padding: 10px 12px;
+  border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--text);
+  font-size: .95rem;
+}
+.picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-content: flex-start;
+}
+.picker-item {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-radius: 30px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-size: .9rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, opacity .15s;
+  white-space: nowrap;
+  position: relative;
+}
+.picker-item:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* 当前正在编辑的这一行已选中的科目：深色高亮 + 勾号 */
+.picker-item.current-selected {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.picker-item.current-selected::after {
+  content: " ✓";
+  font-weight: 700;
+}
+
+/* 已被其他行选走（不可再选）的科目：置灰、禁用 */
+.picker-item.used-disabled {
+  background: var(--bg);
+  color: var(--muted);
+  border-color: var(--line);
+  cursor: not-allowed;
+  opacity: .45;
+  text-decoration: line-through;
+}
+.picker-item.used-disabled:hover {
+  background: var(--bg);
+  border-color: var(--line);
+}
+
+.picker-footer {
+  padding: 10px 16px 16px;
+  border-top: 1px solid var(--line);
+  display: flex; gap: 10px;
+}
+.picker-footer button {
+  flex: 1; font: inherit; padding: 10px 0;
+  border-radius: 10px; cursor: pointer;
+  font-size: .95rem;
+  transition: filter .15s;
+}
+.picker-cancel {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line);
+}
+.picker-cancel:hover { background: var(--bg); }
+.picker-confirm {
+  background: var(--accent); color: #fff;
+  border: 1px solid var(--accent); font-weight: 600;
+}
+.picker-confirm:hover { filter: brightness(1.08); }
+.picker-confirm:disabled {
+  background: var(--muted);
+  border-color: var(--muted);
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.picker-legend {
+  padding: 0 16px 8px;
+  font-size: .72rem;
+  color: var(--muted);
+  display: flex; gap: 14px; flex-wrap: wrap;
+}
+.picker-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.picker-legend i {
+  display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+  border: 1px solid var(--line);
+}
+.picker-legend .lg-current { background: var(--accent); border-color: var(--accent); }
+.picker-legend .lg-used { background: var(--bg); opacity: .45; }
+
+@media (max-width: 480px) {
+  .subject-picker { max-width: 100%; }
+  .picker-list { gap: 6px; }
+  .picker-item { padding: 7px 13px; font-size: .85rem; }
 }
 </style>
 </head>
@@ -258,7 +384,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
         </tfoot>
       </table>
     </div>
-    <p class="hint">下半年全部留空时，平均 = 上半年；填写下半年后，平均 = (上半年 + 下半年) ÷ 2，并四舍五入到整数。积分 = 整数平均 × 周节数。</p>
+    <p class="hint">点击科目输入框会弹出预设科目选择面板，可直接点选，也可在搜索框输入自定义科目名称。已选定的科目再次点击可以重新选择或修改；已经被其他行选过的预设科目会置灰显示，不可重复选择。</p>
   </section>
 
   <section class="card">
@@ -378,7 +504,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
     <div class="terms-body" id="termsBody">
       <div class="scope">本计算器可供各年段使用，请按实际情况填写</div>
       <ol>
-        <li><b>适用范围：</b>本工具可供各年段使用。请根据自己所在的年段，自行填写科目名称、上下半年成绩及每周节数；如科目数量不同，可通过每行右侧的「⋮」按钮新增或删除科目。</li>
+        <li><b>适用范围：</b>本工具可供各年段使用。请根据自己所在的年段，自行填写科目名称、上下半年成绩及每周节数；点击科目输入框会弹出预设科目选择面板，可直接点选，也可在搜索框输入自定义科目名称。已选定的科目再次点击可以重新选择或修改；已经被其他行选过的预设科目会置灰显示，不可重复选择。如科目数量不同，可通过每行右侧的「⋮」按钮新增或删除科目。</li>
         <li><b>上半年成绩：</b>请在各科「上半年」栏填写。如果下半年成绩尚未公布或没有下半年成绩，可将下半年栏全部留空，系统会直接使用上半年成绩计算平均。</li>
         <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均（四舍五入到整数），因此请尽量把每一科的上下半年成绩填写完整，再查看总平均分。</li>
         <li><b>请假 / 缺席（节数）：</b>此项可填可不填，没有请假或缺席可直接留空。如需填写，一律以<b>节数</b>计算，请按节数填写，不要按天数填写。</li>
@@ -404,8 +530,27 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   </div>
 </div>
 
+<!-- ===== 科目选择面板 ===== -->
+<div id="subjectPickerMask" class="subject-picker-mask" role="dialog" aria-modal="true" aria-labelledby="subjectPickerTitle">
+  <div class="subject-picker">
+    <h3 id="subjectPickerTitle">选择科目</h3>
+    <div class="picker-search-wrap">
+      <input type="text" id="pickerSearchInput" placeholder="输入自定义科目名称…" autocomplete="off">
+    </div>
+    <div class="picker-legend">
+      <span><i class="lg-current"></i>当前选中</span>
+      <span><i class="lg-used"></i>已被其他行选走（不可选）</span>
+    </div>
+    <div class="picker-list" id="pickerList"></div>
+    <div class="picker-footer">
+      <button class="picker-cancel" id="pickerCancelBtn" type="button">取消</button>
+      <button class="picker-confirm" id="pickerConfirmBtn" type="button">确定</button>
+    </div>
+  </div>
+</div>
+
 <script>
-// ===== 配置：与 Excel 表一致 =====
+// ===== 配置 =====
 const DEFAULT_SUBJECTS = [
   { name: "", periods: 0 }, { name: "", periods: 0 },
   { name: "", periods: 0 }, { name: "", periods: 0 },
@@ -415,7 +560,12 @@ const DEFAULT_SUBJECTS = [
   { name: "", periods: 0 }, { name: "", periods: 0 },
 ];
 
-// rate = 每节扣分；free = 免扣节数（病假超过 20 节才扣）；rate 为 0 表示不扣分
+const PRESET_SUBJECTS = [
+  "华文", "马来文", "英文", "数学", "科学", "历史", "地理",
+  "体育", "美术", "音乐", "电脑", "辅导",
+  "选修1", "选修2", "联课", "生物", "化学", "物理"
+];
+
 const LEAVES = [
   { name: "病假", rate: 0.001, free: 20 },
   { name: "事假", rate: 0.01 },
@@ -427,7 +577,6 @@ const LEAVES = [
   { name: "特病", rate: 0 },
 ];
 
-// ===== 存储键：加唯一前缀，避免与其他网站/页面共用数据 =====
 const STORAGE_PREFIX = "tavgcalc-9f3a7c-";
 const STORAGE_KEY = STORAGE_PREFIX + "leave-v1";
 const SUBJECT_STORAGE_KEY = STORAGE_PREFIX + "subjects-v2";
@@ -438,7 +587,6 @@ const $ = (id) => document.getElementById(id);
 const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
 const fmt = (n) => (Math.round(n * 100) / 100).toFixed(2);
 
-// 成绩范围限制：只允许 0 至 100 分
 function normalizeScore(value) {
   if (value === "" || value == null) return "";
   const n = Number(value);
@@ -446,7 +594,6 @@ function normalizeScore(value) {
   return String(Math.min(100, Math.max(0, n)));
 }
 
-// 平均分四舍五入到整数（例如 59.5 → 60）
 function roundAvg(n) {
   return Math.round(n);
 }
@@ -458,6 +605,150 @@ let subjects = DEFAULT_SUBJECTS.map((s) => ({
 
 const scoreBody = $("scores").querySelector("tbody");
 const leaveBody = $("leaves").querySelector("tbody");
+
+// ===== 科目选择面板逻辑 =====
+let currentPickerTargetInput = null;
+let currentPickerSubjectId = null;
+let pickerSelectedValue = "";
+
+const pickerMask = $("subjectPickerMask");
+const pickerList = $("pickerList");
+const pickerSearchInput = $("pickerSearchInput");
+const pickerConfirmBtn = $("pickerConfirmBtn");
+const pickerCancelBtn = $("pickerCancelBtn");
+
+// 收集“其他行”已经使用的科目名称（用于禁用）
+function getUsedSubjectNames(excludeSubjectId) {
+  const used = new Set();
+  subjects.forEach((s) => {
+    if (s.id === excludeSubjectId) return;
+    const name = (s.name || "").trim();
+    if (name) used.add(name);
+  });
+  return used;
+}
+
+function renderPickerItems(filterText = "") {
+  // 如果 filterText 为空，显示全部；否则根据关键词过滤
+  const keyword = filterText.trim().toLowerCase();
+  const filtered = keyword
+    ? PRESET_SUBJECTS.filter((name) => name.toLowerCase().includes(keyword))
+    : PRESET_SUBJECTS;
+
+  const usedNames = getUsedSubjectNames(currentPickerSubjectId);
+  const currentName = (pickerSearchInput.value || "").trim();
+
+  pickerList.innerHTML = "";
+
+  if (filtered.length === 0) {
+    const empty = document.createElement("p");
+    empty.style.cssText = "width:100%;text-align:center;color:var(--muted);font-size:.9rem;padding:12px 0;";
+    empty.textContent = "没有匹配的预设科目，可直接输入自定义名称后点确定";
+    pickerList.appendChild(empty);
+  } else {
+    filtered.forEach((name) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      let className = "picker-item";
+      const isCurrent = (name === currentName);
+      const isUsed = usedNames.has(name);
+
+      if (isCurrent) className += " current-selected";
+      else if (isUsed) className += " used-disabled";
+
+      btn.className = className;
+      btn.textContent = name;
+
+      if (isUsed && !isCurrent) {
+        btn.disabled = true;
+        btn.title = "该科目已被其他行选择，不可重复选择";
+      } else {
+        btn.addEventListener("click", () => {
+          pickerSearchInput.value = name;
+          // 点选后不过滤列表，仍然显示全部（保持您要求的能看到其他选项）
+          renderPickerItems("");
+          pickerConfirmBtn.focus();
+        });
+      }
+      pickerList.appendChild(btn);
+    });
+  }
+
+  updatePickerConfirmState();
+}
+
+function updatePickerConfirmState() {
+  const value = pickerSearchInput.value.trim();
+  if (!value) {
+    pickerConfirmBtn.disabled = false;
+    pickerConfirmBtn.title = "";
+    return;
+  }
+  const usedNames = getUsedSubjectNames(currentPickerSubjectId);
+  if (usedNames.has(value)) {
+    pickerConfirmBtn.disabled = true;
+    pickerConfirmBtn.title = "该科目已被其他行选择，不能重复";
+  } else {
+    pickerConfirmBtn.disabled = false;
+    pickerConfirmBtn.title = "";
+  }
+}
+
+function openSubjectPicker(inputEl, subjectId) {
+  currentPickerTargetInput = inputEl;
+  currentPickerSubjectId = subjectId;
+  pickerSelectedValue = inputEl.value.trim() || "";
+  pickerSearchInput.value = pickerSelectedValue;
+  // 打开面板时，如果是预设科目，显示全部列表（不清空搜索框）
+  renderPickerItems("");
+  pickerMask.classList.add("show");
+  document.body.classList.add("locked");
+  setTimeout(() => {
+    pickerSearchInput.focus();
+    const selectedBtn = pickerList.querySelector(".picker-item.current-selected");
+    if (selectedBtn) selectedBtn.scrollIntoView({ block: "nearest" });
+  }, 50);
+}
+
+function closeSubjectPicker() {
+  pickerMask.classList.remove("show");
+  if (!document.querySelector(".action-dialog-mask.show, #termsMask.show, .subject-picker-mask.show")) {
+    document.body.classList.remove("locked");
+  }
+  currentPickerTargetInput = null;
+  currentPickerSubjectId = null;
+}
+
+function confirmSubjectPicker() {
+  if (!currentPickerTargetInput) return;
+  const chosen = pickerSearchInput.value.trim();
+  const usedNames = getUsedSubjectNames(currentPickerSubjectId);
+  if (chosen && usedNames.has(chosen)) {
+    pickerSearchInput.style.borderColor = "var(--danger)";
+    setTimeout(() => { pickerSearchInput.style.borderColor = ""; }, 1200);
+    return;
+  }
+  currentPickerTargetInput.value = chosen;
+  const event = new Event("input", { bubbles: true });
+  currentPickerTargetInput.dispatchEvent(event);
+  closeSubjectPicker();
+}
+
+pickerMask.addEventListener("click", (e) => {
+  if (e.target === pickerMask) closeSubjectPicker();
+});
+pickerCancelBtn.addEventListener("click", closeSubjectPicker);
+pickerConfirmBtn.addEventListener("click", confirmSubjectPicker);
+pickerSearchInput.addEventListener("input", () => {
+  // 用户手动输入时，根据输入内容过滤列表
+  renderPickerItems(pickerSearchInput.value);
+});
+pickerSearchInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (!pickerConfirmBtn.disabled) confirmSubjectPicker();
+  }
+});
 
 // ===== 渲染各科成绩表格 =====
 function renderSubjects() {
@@ -472,9 +763,20 @@ function renderSubjects() {
     const nameInput = document.createElement("input");
     nameInput.type = "text";
     nameInput.className = "subject-name";
-    nameInput.placeholder = "自行输入科目";
+    nameInput.placeholder = "点击选择或输入科目";
     nameInput.value = subject.name;
     nameInput.dataset.field = "name";
+    nameInput.setAttribute("autocomplete", "off");
+    nameInput.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openSubjectPicker(nameInput, subject.id);
+    });
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && document.activeElement === nameInput) {
+        e.preventDefault();
+        openSubjectPicker(nameInput, subject.id);
+      }
+    });
     nameCell.appendChild(nameInput);
 
     const s1Cell = document.createElement("td");
@@ -533,7 +835,6 @@ function renderSubjects() {
       document.querySelectorAll(".row-action-menu.show").forEach((m) => m.classList.remove("show"));
       if (wasOpen) return;
 
-      // 将菜单放到页面最上层，避免被表格边界或滚动区域遮挡
       menu.classList.add("show");
       const buttonRect = actionButton.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
@@ -589,10 +890,12 @@ function insertSubject(targetId, position) {
   renderSubjects();
   save();
   const newRow = scoreBody.querySelector(`[data-subject-id="${newSubject.id}"]`);
-  if (newRow) newRow.querySelector('[data-field="name"]').focus();
+  if (newRow) {
+    const nameInput = newRow.querySelector('[data-field="name"]');
+    if (nameInput) nameInput.focus();
+  }
 }
 
-// 记录待删除的科目 id
 let pendingDeleteSubjectId = null;
 
 function requestDeleteSubject(subjectId) {
@@ -617,7 +920,6 @@ document.addEventListener("click", (event) => {
   }
 });
 
-// 页面滚动或窗口尺寸改变时关闭菜单，避免菜单与按钮位置脱离
 window.addEventListener("scroll", () => {
   document.querySelectorAll(".row-action-menu.show").forEach((menu) => menu.classList.remove("show"));
 }, true);
@@ -641,14 +943,11 @@ LEAVES.forEach((l, i) => {
 // ===== 计算 =====
 function calculate() {
   const totalPeriods = subjects.reduce((sum, s) => sum + num(s.periods), 0);
-
-  // 下半年全部为 0 / 空 → 除以 1，否则每科上下半年相加后除以 2
   const secondTotal = subjects.reduce((sum, s) => sum + num(s.s2), 0);
   const divisor = secondTotal === 0 ? 1 : 2;
 
   let points = 0;
   subjects.forEach((subject) => {
-    // 先算原始平均，再四舍五入到整数
     const rawAvg = (num(subject.s1) + num(subject.s2)) / divisor;
     const avg = roundAvg(rawAvg);
     const pt = avg * num(subject.periods);
@@ -678,7 +977,6 @@ function calculate() {
   });
   $("totalDeduct").textContent = fmt(deduct);
 
-  // 总平均分也四舍五入到整数
   const avgRounded = roundAvg(average);
   $("avg").textContent = String(avgRounded);
   $("deduct").textContent = fmt(deduct);
@@ -713,7 +1011,6 @@ function load() {
         nextSubjectId = Math.max(0, ...subjects.map((s) => s.id)) + 1;
       }
     } else {
-      // 兼容旧版本：读取原本按科目序号保存的成绩（旧键名，仅首次迁移用）
       const oldData = JSON.parse(localStorage.getItem("grade-calculator-v1") || "{}");
       subjects.forEach((s, i) => {
         s.s1 = normalizeScore(oldData[`s1-${i}`] ?? "");
@@ -739,7 +1036,6 @@ function isDark() {
   return t ? t === "dark" : systemDark.matches;
 }
 function updateThemeBtn() {
-  // 深色时显示太阳（点击切到浅色），浅色时显示月亮（点击切到深色）
   $("themeBtn").textContent = isDark() ? "☀️" : "🌙";
 }
 $("themeBtn").addEventListener("click", () => {
@@ -751,15 +1047,13 @@ $("themeBtn").addEventListener("click", () => {
 systemDark.addEventListener("change", updateThemeBtn);
 updateThemeBtn();
 
-// ===== 使用须知（每次打开 / 刷新都会弹出，必须滚动到底部才能同意）=====
+// ===== 使用须知 =====
 const termsMask = $("termsMask");
 const termsBody = $("termsBody");
 const agreeBtn = $("agreeBtn");
 const scrollHint = $("scrollHint");
 
-// 检查是否滚动到底部，并更新同意按钮状态
 function checkTermsScroll() {
-  // 内容未溢出（或几乎未溢出）时直接允许
   const scrollable = termsBody.scrollHeight > termsBody.clientHeight + 2;
   if (!scrollable) {
     agreeBtn.disabled = false;
@@ -776,12 +1070,10 @@ function checkTermsScroll() {
   }
 }
 
-// 每次打开弹窗都重置滚动和按钮状态
 function resetTermsState() {
   termsBody.scrollTop = 0;
   $("termsMsg").textContent = "";
   agreeBtn.disabled = true;
-  // 等布局完成后检查一次
   requestAnimationFrame(checkTermsScroll);
 }
 
@@ -792,12 +1084,12 @@ function showTerms() {
 }
 function hideTerms() {
   termsMask.classList.remove("show");
-  document.body.classList.remove("locked");
+  if (!document.querySelector(".action-dialog-mask.show, .subject-picker-mask.show")) {
+    document.body.classList.remove("locked");
+  }
 }
 
-// 监听滚动事件
 termsBody.addEventListener("scroll", checkTermsScroll);
-// 窗口大小变化时重新检查（可能从可滚动变为不可滚动）
 window.addEventListener("resize", () => {
   if (termsMask.classList.contains("show")) checkTermsScroll();
 });
@@ -808,7 +1100,6 @@ $("disagreeBtn").addEventListener("click", () => {
 });
 $("termsLink").addEventListener("click", showTerms);
 
-// 首次加载时显示使用须知
 showTerms();
 
 // ===== 成绩表输入、请假输入与清空 =====
@@ -849,13 +1140,11 @@ function openMask(el) {
 }
 function closeMask(el) {
   el.classList.remove("show");
-  // 只有所有遮罩都关闭时才解锁滚动
-  if (!document.querySelector(".action-dialog-mask.show, #termsMask.show")) {
+  if (!document.querySelector(".action-dialog-mask.show, #termsMask.show, .subject-picker-mask.show")) {
     document.body.classList.remove("locked");
   }
 }
 function bindMask(el) {
-  // 点击遮罩空白处关闭
   el.addEventListener("click", (e) => {
     if (e.target === el) closeMask(el);
   });
@@ -869,11 +1158,10 @@ const resetConfirmMask = $("resetConfirmMask");
 const deleteSubjectMask = $("deleteSubjectMask");
 [clearScoresMask, clearScoresConfirmMask, clearLeavesMask, resetMask, resetConfirmMask, deleteSubjectMask].forEach(bindMask);
 
-// ===== 清空成绩：范围选择 =====
+// ===== 清空成绩 =====
 $("clearScores").addEventListener("click", () => openMask(clearScoresMask));
 $("clearScoresCancel").addEventListener("click", () => closeMask(clearScoresMask));
 
-// 记录待执行的清空成绩类型
 let pendingClearScoresType = null;
 
 function requestClearScores(type) {
@@ -924,11 +1212,10 @@ $("clearLeavesConfirm").addEventListener("click", () => {
   save();
 });
 
-// ===== 清空全部：范围选择 =====
+// ===== 清空全部 =====
 $("reset").addEventListener("click", () => openMask(resetMask));
 $("resetCancel").addEventListener("click", () => closeMask(resetMask));
 
-// 记录待执行的清空全部类型
 let pendingResetType = null;
 
 function requestReset(type) {
@@ -985,7 +1272,7 @@ $("deleteSubjectConfirm").addEventListener("click", () => {
   if (id != null) doDeleteSubject(id);
 });
 
-// 初始化数据
+// 初始化
 load();
 renderSubjects();
 calculate();
