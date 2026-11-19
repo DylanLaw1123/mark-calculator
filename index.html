@@ -41,6 +41,18 @@ h1 { margin: 0; font-size: 1.6rem; }
 h2 { margin: 0 0 12px; font-size: 1.1rem; }
 main { max-width: 900px; margin: 0 auto; padding: 8px 16px 24px; display: grid; gap: 16px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 12px;
+}
+.card-head h2 { margin: 0; }
+.table-clear-btn {
+  font: inherit; font-size: .82rem; cursor: pointer;
+  color: var(--muted); background: transparent;
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px;
+  white-space: nowrap;
+}
+.table-clear-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 600px; }
 th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -76,6 +88,49 @@ input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .row-action-menu button:hover { background: var(--accent-soft); }
 .row-action-menu button.delete { color: var(--danger); }
 .hint { margin: 12px 0 0; font-size: .82rem; color: var(--muted); }
+
+/* 通用操作弹窗 */
+.action-dialog-mask {
+  position: fixed; inset: 0; z-index: 110; padding: 16px;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .55);
+}
+.action-dialog-mask.show { display: flex; }
+.action-dialog {
+  width: 100%; max-width: 400px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+  padding: 18px 20px;
+}
+.action-dialog h3 { margin: 0 0 8px; font-size: 1.1rem; text-align: center; }
+.action-dialog p { margin: 0 0 14px; font-size: .85rem; color: var(--muted); text-align: center; }
+.action-dialog .opt-btn {
+  width: 100%; font: inherit; cursor: pointer; text-align: left;
+  padding: 10px 12px; margin-bottom: 8px;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.action-dialog .opt-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+.action-dialog .opt-btn b { display: block; font-size: .95rem; margin-bottom: 2px; }
+.action-dialog .opt-btn span { font-size: .78rem; color: var(--muted); }
+.action-dialog .opt-btn.danger b { color: var(--danger); }
+.action-dialog .cancel-btn {
+  width: 100%; font: inherit; cursor: pointer;
+  padding: 8px 0; margin-top: 4px;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.action-dialog .cancel-btn:hover { background: var(--bg); }
+
+/* 删除类二次确认（红色确认按钮） */
+.action-dialog .confirm-danger {
+  width: 100%; font: inherit; cursor: pointer; font-weight: 600;
+  padding: 10px 0; margin-bottom: 8px;
+  color: #fff; background: var(--danger); border: 1px solid var(--danger);
+  border-radius: 8px;
+}
+.action-dialog .confirm-danger:hover { filter: brightness(1.08); }
 
 /* 主题按钮 */
 #themeBtn {
@@ -139,8 +194,20 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 .terms-body ol { margin: 0; padding-left: 1.3em; }
 .terms-body li { margin-bottom: 8px; }
 .terms-body li b { color: var(--text); }
-.terms-body li.sub-item { margin-bottom: 6px; }
-.terms-body li.sub-item::marker { color: var(--muted); }
+/* 小节分组 */
+.terms-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.terms-section-title {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .04em;
+  margin: 0 0 8px;
+  padding-left: 2px;
+}
 .terms-foot { padding: 12px 20px 18px; border-top: 1px solid var(--line); }
 .terms-msg { min-height: 1.3em; margin: 0 0 8px; text-align: center; font-size: .85rem; color: var(--danger); }
 .terms-btns { display: flex; gap: 10px; }
@@ -176,7 +243,10 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
 <main>
   <section class="card">
-    <h2>各科成绩</h2>
+    <div class="card-head">
+      <h2>各科成绩</h2>
+      <button id="clearScores" class="table-clear-btn" type="button">清空成绩</button>
+    </div>
     <div class="table-wrap">
       <table id="scores">
         <thead>
@@ -192,8 +262,12 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   </section>
 
   <section class="card">
+    <div class="card-head">
+      <h2>请假 / 缺席（节数）</h2>
+      <button id="clearLeaves" class="table-clear-btn" type="button">清空请假</button>
+    </div>
     <details id="leaveBox" open>
-      <summary>请假 / 缺席（节数）</summary>
+      <summary>填写请假数据</summary>
       <div class="table-wrap">
         <table id="leaves">
           <thead>
@@ -223,6 +297,80 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   <a id="termsLink">使用须知</a>
 </footer>
 
+<!-- 清空成绩：选择范围 -->
+<div id="clearScoresMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="clearScoresTitle">
+  <div class="action-dialog">
+    <h3 id="clearScoresTitle">清空成绩</h3>
+    <p>请选择清空范围</p>
+    <button class="opt-btn" id="clearScoresOnly" type="button">
+      <b>只清空成绩数据</b>
+      <span>保留科目名称和周节数</span>
+    </button>
+    <button class="opt-btn danger" id="clearScoresAll" type="button">
+      <b>清空成绩 + 科目 + 周节数</b>
+      <span>保留当前行数，所有内容变为空</span>
+    </button>
+    <button class="cancel-btn" id="clearScoresCancel" type="button">取消</button>
+  </div>
+</div>
+
+<!-- 清空成绩：二次确认 -->
+<div id="clearScoresConfirmMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="clearScoresConfirmTitle">
+  <div class="action-dialog">
+    <h3 id="clearScoresConfirmTitle">确认清空</h3>
+    <p id="clearScoresConfirmText">确定执行此清空操作吗？</p>
+    <button class="confirm-danger" id="clearScoresConfirmBtn" type="button">确定清空</button>
+    <button class="cancel-btn" id="clearScoresConfirmCancel" type="button">取消</button>
+  </div>
+</div>
+
+<!-- 清空请假弹窗 -->
+<div id="clearLeavesMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="clearLeavesTitle">
+  <div class="action-dialog">
+    <h3 id="clearLeavesTitle">清空请假</h3>
+    <p>确定清空所有请假 / 缺席数据吗？</p>
+    <button class="confirm-danger" id="clearLeavesConfirm" type="button">确定清空</button>
+    <button class="cancel-btn" id="clearLeavesCancel" type="button">取消</button>
+  </div>
+</div>
+
+<!-- 清空全部：选择范围 -->
+<div id="resetMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+  <div class="action-dialog">
+    <h3 id="resetTitle">清空全部</h3>
+    <p>请选择清空范围</p>
+    <button class="opt-btn danger" id="resetAllConfirm" type="button">
+      <b>清空全部并恢复默认表格</b>
+      <span>科目、成绩、周节数、请假全部清空，恢复为 12 行空表格</span>
+    </button>
+    <button class="opt-btn" id="resetKeepRows" type="button">
+      <b>清空全部，但保留当前行数</b>
+      <span>科目、成绩、周节数、请假全部清空，表格行数不变</span>
+    </button>
+    <button class="cancel-btn" id="resetCancel" type="button">取消</button>
+  </div>
+</div>
+
+<!-- 清空全部：二次确认 -->
+<div id="resetConfirmMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="resetConfirmTitle">
+  <div class="action-dialog">
+    <h3 id="resetConfirmTitle">确认清空全部</h3>
+    <p id="resetConfirmText">确定执行此清空操作吗？</p>
+    <button class="confirm-danger" id="resetConfirmBtn" type="button">确定清空</button>
+    <button class="cancel-btn" id="resetConfirmCancel" type="button">取消</button>
+  </div>
+</div>
+
+<!-- 删除科目行弹窗 -->
+<div id="deleteSubjectMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="deleteSubjectTitle">
+  <div class="action-dialog">
+    <h3 id="deleteSubjectTitle">删除科目行</h3>
+    <p id="deleteSubjectText">确定删除这一行吗？</p>
+    <button class="confirm-danger" id="deleteSubjectConfirm" type="button">确定删除</button>
+    <button class="cancel-btn" id="deleteSubjectCancel" type="button">取消</button>
+  </div>
+</div>
+
 <!-- 使用须知弹窗 -->
 <div id="termsMask" role="dialog" aria-modal="true" aria-labelledby="termsTitle">
   <div class="terms">
@@ -235,10 +383,15 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
         <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均（四舍五入到整数），因此请尽量把每一科的上下半年成绩填写完整，再查看总平均分。</li>
         <li><b>请假 / 缺席（节数）：</b>此项可填可不填，没有请假或缺席可直接留空。如需填写，一律以<b>节数</b>计算，请按节数填写，不要按天数填写。</li>
         <li><b>结果仅供参考：</b>计算结果可能与实际有误差（±3），最终成绩请以学校正式公布的为准。</li>
-        <li><b>数据隐私：</b>你输入的所有成绩和请假数据只保存在你自己的浏览器中，不会上传到任何服务器。清除浏览器数据后将一并丢失。</li>
-        <li><b>正确使用：</b>请如实填写数据，不得将本工具用于伪造、篡改成绩等用途。</li>
-        <li><b>免责声明：</b>因输入错误、规则变动或使用本工具所产生的任何后果，由使用者自行承担。</li>
       </ol>
+      <div class="terms-section">
+        <p class="terms-section-title">隐私与使用规范</p>
+        <ol start="6">
+          <li><b>数据隐私：</b>你输入的所有成绩和请假数据只保存在你自己的浏览器中，不会上传到任何服务器。清除浏览器数据后将一并丢失。</li>
+          <li><b>正确使用：</b>请如实填写数据，不得将本工具用于伪造、篡改成绩等用途。</li>
+          <li><b>免责声明：</b>因输入错误、规则变动或使用本工具所产生的任何后果，由使用者自行承担。</li>
+        </ol>
+      </div>
     </div>
     <div class="terms-foot">
       <p class="scroll-hint" id="scrollHint">↓ 请向下滚动阅读全部内容 ↓</p>
@@ -413,7 +566,7 @@ function renderSubjects() {
     remove.type = "button";
     remove.className = "delete";
     remove.textContent = "删除这一行";
-    remove.addEventListener("click", () => deleteSubject(subject.id));
+    remove.addEventListener("click", () => requestDeleteSubject(subject.id));
 
     menu.append(addAbove, addBelow, remove);
     actionCell.append(actionButton);
@@ -439,11 +592,18 @@ function insertSubject(targetId, position) {
   if (newRow) newRow.querySelector('[data-field="name"]').focus();
 }
 
-function deleteSubject(subjectId) {
+// 记录待删除的科目 id
+let pendingDeleteSubjectId = null;
+
+function requestDeleteSubject(subjectId) {
   const subject = subjects.find((s) => s.id === subjectId);
   if (!subject) return;
-  if (!confirm(`确定删除「${subject.name || "未命名科目"}」这一行吗？`)) return;
+  pendingDeleteSubjectId = subjectId;
+  $("deleteSubjectText").textContent = `确定删除「${subject.name || "未命名科目"}」这一行吗？`;
+  openMask($("deleteSubjectMask"));
+}
 
+function doDeleteSubject(subjectId) {
   subjects = subjects.filter((s) => s.id !== subjectId);
   renderSubjects();
   save();
@@ -682,13 +842,147 @@ $("leaveBox").addEventListener("toggle", () => {
   try { localStorage.setItem(OPEN_KEY, $("leaveBox").open ? "1" : "0"); } catch (e) {}
 });
 
-$("reset").addEventListener("click", () => {
-  if (!confirm("确定清空所有成绩和请假数据？科目名称及周节数会保留。")) return;
-  subjects.forEach((s) => { s.s1 = ""; s.s2 = ""; });
+// ===== 通用弹窗开关 =====
+function openMask(el) {
+  el.classList.add("show");
+  document.body.classList.add("locked");
+}
+function closeMask(el) {
+  el.classList.remove("show");
+  // 只有所有遮罩都关闭时才解锁滚动
+  if (!document.querySelector(".action-dialog-mask.show, #termsMask.show")) {
+    document.body.classList.remove("locked");
+  }
+}
+function bindMask(el) {
+  // 点击遮罩空白处关闭
+  el.addEventListener("click", (e) => {
+    if (e.target === el) closeMask(el);
+  });
+}
+
+const clearScoresMask = $("clearScoresMask");
+const clearScoresConfirmMask = $("clearScoresConfirmMask");
+const clearLeavesMask = $("clearLeavesMask");
+const resetMask = $("resetMask");
+const resetConfirmMask = $("resetConfirmMask");
+const deleteSubjectMask = $("deleteSubjectMask");
+[clearScoresMask, clearScoresConfirmMask, clearLeavesMask, resetMask, resetConfirmMask, deleteSubjectMask].forEach(bindMask);
+
+// ===== 清空成绩：范围选择 =====
+$("clearScores").addEventListener("click", () => openMask(clearScoresMask));
+$("clearScoresCancel").addEventListener("click", () => closeMask(clearScoresMask));
+
+// 记录待执行的清空成绩类型
+let pendingClearScoresType = null;
+
+function requestClearScores(type) {
+  pendingClearScoresType = type;
+  if (type === "only") {
+    $("clearScoresConfirmText").textContent = "确定只清空所有成绩数据吗？科目名称和周节数会保留。";
+  } else {
+    $("clearScoresConfirmText").textContent = "确定清空成绩、科目名称和周节数吗？当前行数会保留，但所有内容都变为空。";
+  }
+  closeMask(clearScoresMask);
+  openMask(clearScoresConfirmMask);
+}
+
+$("clearScoresOnly").addEventListener("click", () => requestClearScores("only"));
+$("clearScoresAll").addEventListener("click", () => requestClearScores("all"));
+
+$("clearScoresConfirmCancel").addEventListener("click", () => {
+  pendingClearScoresType = null;
+  closeMask(clearScoresConfirmMask);
+});
+
+$("clearScoresConfirmBtn").addEventListener("click", () => {
+  const type = pendingClearScoresType;
+  pendingClearScoresType = null;
+  closeMask(clearScoresConfirmMask);
+  if (type === "only") {
+    subjects.forEach((s) => { s.s1 = ""; s.s2 = ""; });
+  } else if (type === "all") {
+    subjects.forEach((s) => {
+      s.name = "";
+      s.periods = 0;
+      s.s1 = "";
+      s.s2 = "";
+    });
+  }
+  renderSubjects();
+  calculate();
+  save();
+});
+
+// ===== 清空请假 =====
+$("clearLeaves").addEventListener("click", () => openMask(clearLeavesMask));
+$("clearLeavesCancel").addEventListener("click", () => closeMask(clearLeavesMask));
+$("clearLeavesConfirm").addEventListener("click", () => {
+  closeMask(clearLeavesMask);
+  document.querySelectorAll("#leaves input").forEach((el) => (el.value = ""));
+  calculate();
+  save();
+});
+
+// ===== 清空全部：范围选择 =====
+$("reset").addEventListener("click", () => openMask(resetMask));
+$("resetCancel").addEventListener("click", () => closeMask(resetMask));
+
+// 记录待执行的清空全部类型
+let pendingResetType = null;
+
+function requestReset(type) {
+  pendingResetType = type;
+  if (type === "default") {
+    $("resetConfirmText").textContent = "确定清空全部内容并恢复为默认 12 行空表格吗？";
+  } else {
+    $("resetConfirmText").textContent = "确定清空全部内容吗？当前表格行数会保留，但所有内容都变为空。";
+  }
+  closeMask(resetMask);
+  openMask(resetConfirmMask);
+}
+
+$("resetAllConfirm").addEventListener("click", () => requestReset("default"));
+$("resetKeepRows").addEventListener("click", () => requestReset("keep"));
+
+$("resetConfirmCancel").addEventListener("click", () => {
+  pendingResetType = null;
+  closeMask(resetConfirmMask);
+});
+
+$("resetConfirmBtn").addEventListener("click", () => {
+  const type = pendingResetType;
+  pendingResetType = null;
+  closeMask(resetConfirmMask);
+  if (type === "default") {
+    nextSubjectId = 1;
+    subjects = DEFAULT_SUBJECTS.map((s) => ({
+      id: nextSubjectId++, name: s.name, periods: s.periods, s1: "", s2: ""
+    }));
+  } else {
+    subjects.forEach((s) => {
+      s.name = "";
+      s.periods = 0;
+      s.s1 = "";
+      s.s2 = "";
+    });
+  }
   document.querySelectorAll("#leaves input").forEach((el) => (el.value = ""));
   renderSubjects();
   calculate();
   save();
+});
+
+// ===== 删除科目行 =====
+$("deleteSubjectCancel").addEventListener("click", () => {
+  pendingDeleteSubjectId = null;
+  closeMask(deleteSubjectMask);
+});
+$("deleteSubjectConfirm").addEventListener("click", () => {
+  const id = pendingDeleteSubjectId;
+  pendingDeleteSubjectId = null;
+  closeMask(deleteSubjectMask);
+  if (id != null) doDeleteSubject(id);
 });
 
 // 初始化数据
