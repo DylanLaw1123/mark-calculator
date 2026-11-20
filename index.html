@@ -1332,7 +1332,7 @@ versionMask.addEventListener("click", (event) => {
   if (event.target === versionMask) hideVersionInfo();
 });
 
-if (!hasAgreedTerms()) showTerms();
+showTerms(); // 每次打开计算器都显示使用须知
 
 // ===== 成绩表输入、请假输入 =====
 scoreBody.addEventListener("input", (event) => {
