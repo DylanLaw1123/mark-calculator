@@ -405,7 +405,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
       <div class="table-wrap">
         <table id="leaves">
           <thead>
-            <tr><th>类别</th><th>上学年</th><th>下学年</th><th>总数</th><th>计算节数</th><th>每节扣分</th><th>小计</th></tr>
+            <tr><th>类别</th><th>上半年</th><th>下半年</th><th>总数</th><th>计算节数</th><th>每节扣分</th><th>小计</th></tr>
           </thead>
           <tbody></tbody>
           <tfoot>
@@ -472,13 +472,34 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   </div>
 </div>
 
-<!-- 清空请假弹窗 -->
+<!-- 清空请假：选择范围 -->
 <div id="clearLeavesMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="clearLeavesTitle">
   <div class="action-dialog">
-    <h3 id="clearLeavesTitle">清空请假</h3>
-    <p>确定清空所有请假 / 缺席数据吗？</p>
-    <button class="confirm-danger" id="clearLeavesConfirm" type="button">确定清空</button>
+    <h3 id="clearLeavesTitle">清空请假 / 缺席</h3>
+    <p>请选择清空范围</p>
+    <button class="opt-btn" id="clearLeavesS1" type="button">
+      <b>只清空上半年</b>
+      <span>保留下半年请假 / 缺席数据</span>
+    </button>
+    <button class="opt-btn" id="clearLeavesS2" type="button">
+      <b>只清空下半年</b>
+      <span>保留上半年请假 / 缺席数据</span>
+    </button>
+    <button class="opt-btn danger" id="clearLeavesAll" type="button">
+      <b>清空全部（上半年 + 下半年）</b>
+      <span>清空所有请假 / 缺席数据</span>
+    </button>
     <button class="cancel-btn" id="clearLeavesCancel" type="button">取消</button>
+  </div>
+</div>
+
+<!-- 清空请假：二次确认 -->
+<div id="clearLeavesConfirmMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="clearLeavesConfirmTitle">
+  <div class="action-dialog">
+    <h3 id="clearLeavesConfirmTitle">确认清空</h3>
+    <p id="clearLeavesConfirmText">确定执行此清空操作吗？</p>
+    <button class="confirm-danger" id="clearLeavesConfirm" type="button">确定清空</button>
+    <button class="cancel-btn" id="clearLeavesConfirmCancel" type="button">取消</button>
   </div>
 </div>
 
@@ -1286,7 +1307,7 @@ const clearLeavesMask = $("clearLeavesMask");
 const resetMask = $("resetMask");
 const resetConfirmMask = $("resetConfirmMask");
 const deleteSubjectMask = $("deleteSubjectMask");
-[clearScoresMask, clearScoresConfirmMask, clearLeavesMask, resetMask, resetConfirmMask, deleteSubjectMask].forEach(bindMask);
+[clearScoresMask, clearScoresConfirmMask, clearLeavesMask, $("clearLeavesConfirmMask"), resetMask, resetConfirmMask, deleteSubjectMask].forEach(bindMask);
 
 // ===== ESC 关闭弹窗 =====
 document.addEventListener("keydown", (e) => {
@@ -1297,6 +1318,7 @@ document.addEventListener("keydown", (e) => {
     const topDialog = dialogs[dialogs.length - 1];
     if (topDialog === deleteSubjectMask) pendingDeleteSubjectId = null;
     if (topDialog === clearScoresConfirmMask) pendingClearScoresType = null;
+    if (topDialog === $("clearLeavesConfirmMask")) pendingClearLeavesType = null;
     if (topDialog === resetConfirmMask) pendingResetType = null;
     closeMask(topDialog);
     return;
@@ -1356,12 +1378,47 @@ $("clearScoresConfirmBtn").addEventListener("click", () => {
   save();
 });
 
-// ===== 清空请假 =====
+// ===== 清空请假 / 缺席（上半年 / 下半年 / 全部） =====
+const clearLeavesConfirmMask = $("clearLeavesConfirmMask");
+let pendingClearLeavesType = null; // "s1" | "s2" | "all"
+
 $("clearLeaves").addEventListener("click", () => openMask(clearLeavesMask));
 $("clearLeavesCancel").addEventListener("click", () => closeMask(clearLeavesMask));
-$("clearLeavesConfirm").addEventListener("click", () => {
+
+function requestClearLeaves(type) {
+  pendingClearLeavesType = type;
+  const texts = {
+    s1: "确定只清空上半年的请假 / 缺席数据吗？下半年数据会保留。",
+    s2: "确定只清空下半年的请假 / 缺席数据吗？上半年数据会保留。",
+    all: "确定清空所有请假 / 缺席数据（上半年 + 下半年）吗？"
+  };
+  $("clearLeavesConfirmText").textContent = texts[type];
   closeMask(clearLeavesMask);
-  document.querySelectorAll("#leaves input").forEach((el) => (el.value = ""));
+  openMask(clearLeavesConfirmMask);
+}
+
+$("clearLeavesS1").addEventListener("click", () => requestClearLeaves("s1"));
+$("clearLeavesS2").addEventListener("click", () => requestClearLeaves("s2"));
+$("clearLeavesAll").addEventListener("click", () => requestClearLeaves("all"));
+
+$("clearLeavesConfirmCancel").addEventListener("click", () => {
+  pendingClearLeavesType = null;
+  closeMask(clearLeavesConfirmMask);
+});
+
+$("clearLeavesConfirm").addEventListener("click", () => {
+  const type = pendingClearLeavesType;
+  pendingClearLeavesType = null;
+  closeMask(clearLeavesConfirmMask);
+
+  document.querySelectorAll("#leaves input").forEach((el) => {
+    const key = el.dataset.k || "";
+    if (type === "all" ||
+        (type === "s1" && key.startsWith("l1-")) ||
+        (type === "s2" && key.startsWith("l2-"))) {
+      el.value = "";
+    }
+  });
   calculate();
   save();
 });
