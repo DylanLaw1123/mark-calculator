@@ -230,6 +230,16 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   margin: 0;
 }
 
+/* 计算范围选择 */
+.calc-mode {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding-bottom: 10px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  font-size: .9rem; color: var(--muted);
+}
+.calc-mode label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text); }
+.calc-mode input { accent-color: var(--accent); }
+
 /* 科目选择面板 */
 .subject-picker-mask {
   position: fixed; inset: 0; z-index: 120;
@@ -408,6 +418,12 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   </section>
 
   <section class="card result">
+    <div class="calc-mode">
+      <span>计算范围</span>
+      <label><input type="radio" name="calcMode" value="auto" checked> 自动</label>
+      <label><input type="radio" name="calcMode" value="s1"> 只算上半年</label>
+      <label><input type="radio" name="calcMode" value="s2"> 只算下半年</label>
+    </div>
     <div class="row"><span>平均分数</span><strong id="avg">0.00</strong></div>
     <div class="row"><span>缺席扣分</span><strong id="deduct">0.00</strong></div>
     <div class="row final"><span>实得分数</span><strong id="final">0.00</strong></div>
@@ -421,13 +437,21 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   <a id="termsLink">使用须知</a>
 </footer>
 
-<!-- 清空成绩：选择范围 -->
+<!-- 清空成绩：选择范围（含上/下半年） -->
 <div id="clearScoresMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="clearScoresTitle">
   <div class="action-dialog">
     <h3 id="clearScoresTitle">清空成绩</h3>
     <p>请选择清空范围</p>
+    <button class="opt-btn" id="clearScoresS1" type="button">
+      <b>只清空上半年成绩</b>
+      <span>保留下半年、科目名称和周节数</span>
+    </button>
+    <button class="opt-btn" id="clearScoresS2" type="button">
+      <b>只清空下半年成绩</b>
+      <span>保留上半年、科目名称和周节数</span>
+    </button>
     <button class="opt-btn" id="clearScoresOnly" type="button">
-      <b>只清空成绩数据</b>
+      <b>清空全部成绩（上+下）</b>
       <span>保留科目名称和周节数</span>
     </button>
     <button class="opt-btn danger" id="clearScoresAll" type="button">
@@ -528,9 +552,19 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
     <div class="terms-foot">
       <p class="scroll-hint" id="scrollHint">↓ 请向下滚动阅读全部内容 ↓</p>
       <p class="terms-msg" id="termsMsg"></p>
-      <div class="terms-btns">
+      <div class="terms-btns" id="termsBtns">
         <button id="disagreeBtn" type="button">不同意</button>
         <button id="agreeBtn" type="button" disabled>同意并继续</button>
+      </div>
+      <div id="termsRejected" style="display:none; text-align:center;">
+        <p style="color:var(--danger); font-size:.9rem; margin:0 0 10px;">
+          未同意使用须知，无法使用本计算器。
+        </p>
+        <button id="termsRetryBtn" type="button"
+          style="font:inherit; padding:10px 20px; border-radius:8px; cursor:pointer;
+                 color:#fff; background:var(--accent); border:1px solid var(--accent);">
+          重新阅读并同意
+        </button>
       </div>
     </div>
   </div>
@@ -557,14 +591,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 
 <script>
 // ===== 配置 =====
-const DEFAULT_SUBJECTS = [
-  { name: "", periods: 0 }, { name: "", periods: 0 },
-  { name: "", periods: 0 }, { name: "", periods: 0 },
-  { name: "", periods: 0 }, { name: "", periods: 0 },
-  { name: "", periods: 0 }, { name: "", periods: 0 },
-  { name: "", periods: 0 }, { name: "", periods: 0 },
-  { name: "", periods: 0 }, { name: "", periods: 0 },
-];
+const DEFAULT_SUBJECTS = Array.from({ length: 12 }, () => ({ name: "", periods: 0 }));
 
 const PRESET_SUBJECTS = [
   "华文", "马来文", "英文", "数学", "科学", "历史", "地理",
@@ -588,6 +615,8 @@ const STORAGE_KEY = STORAGE_PREFIX + "leave-v1";
 const SUBJECT_STORAGE_KEY = STORAGE_PREFIX + "subjects-v2";
 const OPEN_KEY = STORAGE_PREFIX + "leave-open";
 const THEME_KEY = STORAGE_PREFIX + "theme";
+const CALC_MODE_KEY = STORAGE_PREFIX + "calc-mode";
+const TERMS_AGREED_KEY = STORAGE_PREFIX + "terms-agreed-v1";
 
 const $ = (id) => document.getElementById(id);
 const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
@@ -609,13 +638,62 @@ let subjects = DEFAULT_SUBJECTS.map((s) => ({
   id: nextSubjectId++, name: s.name, periods: s.periods, s1: "", s2: ""
 }));
 
+let calcMode = "auto"; // "auto" | "s1" | "s2"
+
 const scoreBody = $("scores").querySelector("tbody");
 const leaveBody = $("leaves").querySelector("tbody");
+
+// ===== 计算范围（上半年 / 下半年 / 自动） =====
+function loadCalcMode() {
+  try {
+    const v = localStorage.getItem(CALC_MODE_KEY);
+    if (v === "auto" || v === "s1" || v === "s2") calcMode = v;
+  } catch (e) {}
+  const radio = document.querySelector(`input[name="calcMode"][value="${calcMode}"]`);
+  if (radio) radio.checked = true;
+}
+
+document.querySelectorAll('input[name="calcMode"]').forEach((r) => {
+  r.addEventListener("change", () => {
+    if (!r.checked) return;
+    calcMode = r.value;
+    try { localStorage.setItem(CALC_MODE_KEY, calcMode); } catch (e) {}
+    calculate();
+  });
+});
+
+// ===== 禁止成绩输入框输入 + - * / 等非法字符 =====
+function blockOperatorKeys(inputEl) {
+  if (!inputEl || inputEl.dataset.blocked) return;
+  inputEl.dataset.blocked = "1";
+
+  inputEl.addEventListener("keydown", (e) => {
+    const allowed = [
+      "Backspace", "Delete", "ArrowLeft", "ArrowRight",
+      "ArrowUp", "ArrowDown", "Tab", "Home", "End", "Enter"
+    ];
+    if (allowed.includes(e.key)) return;
+    if (e.key === "." && !inputEl.value.includes(".")) return;
+    if (/^[0-9]$/.test(e.key)) return;
+    if (e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+  });
+
+  inputEl.addEventListener("paste", (e) => {
+    const text = (e.clipboardData || window.clipboardData).getData("text");
+    if (/[^0-9.]/.test(text)) {
+      e.preventDefault();
+      const cleaned = text.replace(/[^0-9.]/g, "");
+      const start = inputEl.selectionStart, end = inputEl.selectionEnd;
+      inputEl.setRangeText(cleaned, start, end, "end");
+      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
+}
 
 // ===== 科目选择面板逻辑 =====
 let currentPickerTargetInput = null;
 let currentPickerSubjectId = null;
-let pickerSelectedValue = "";
 
 const pickerMask = $("subjectPickerMask");
 const pickerList = $("pickerList");
@@ -700,8 +778,7 @@ function updatePickerConfirmState() {
 function openSubjectPicker(inputEl, subjectId) {
   currentPickerTargetInput = inputEl;
   currentPickerSubjectId = subjectId;
-  pickerSelectedValue = inputEl.value.trim() || "";
-  pickerSearchInput.value = pickerSelectedValue;
+  pickerSearchInput.value = inputEl.value.trim() || "";
   renderPickerItems("");
   pickerMask.classList.add("show");
   document.body.classList.add("locked");
@@ -714,9 +791,7 @@ function openSubjectPicker(inputEl, subjectId) {
 
 function closeSubjectPicker() {
   pickerMask.classList.remove("show");
-  if (!document.querySelector(".action-dialog-mask.show, #termsMask.show, .subject-picker-mask.show")) {
-    document.body.classList.remove("locked");
-  }
+  if (!anyModalOpen()) document.body.classList.remove("locked");
   currentPickerTargetInput = null;
   currentPickerSubjectId = null;
 }
@@ -751,6 +826,13 @@ pickerSearchInput.addEventListener("keydown", (e) => {
   }
 });
 
+// ===== 通用：是否有弹窗打开 =====
+function anyModalOpen() {
+  return !!document.querySelector(
+    ".action-dialog-mask.show, #termsMask.show, .subject-picker-mask.show"
+  );
+}
+
 // ===== 渲染各科成绩表格 =====
 function renderSubjects() {
   scoreBody.innerHTML = "";
@@ -778,6 +860,15 @@ function renderSubjects() {
         openSubjectPicker(nameInput, subject.id);
       }
     });
+    nameInput.addEventListener("blur", () => {
+      const trimmed = nameInput.value.trim();
+      if (trimmed !== nameInput.value) {
+        nameInput.value = trimmed;
+        subject.name = trimmed;
+        calculate();
+        saveDebounced();
+      }
+    });
     nameCell.appendChild(nameInput);
 
     const s1Cell = document.createElement("td");
@@ -788,6 +879,7 @@ function renderSubjects() {
     s1Input.step = "any";
     s1Input.value = subject.s1;
     s1Input.dataset.field = "s1";
+    blockOperatorKeys(s1Input);
     s1Cell.appendChild(s1Input);
 
     const s2Cell = document.createElement("td");
@@ -798,6 +890,7 @@ function renderSubjects() {
     s2Input.step = "any";
     s2Input.value = subject.s2;
     s2Input.dataset.field = "s2";
+    blockOperatorKeys(s2Input);
     s2Cell.appendChild(s2Input);
 
     const avgCell = document.createElement("td");
@@ -813,6 +906,7 @@ function renderSubjects() {
     periodsInput.placeholder = "待输入";
     periodsInput.value = subject.periods || "";
     periodsInput.dataset.field = "periods";
+    blockOperatorKeys(periodsInput);
     periodsCell.appendChild(periodsInput);
 
     const pointsCell = document.createElement("td");
@@ -941,15 +1035,23 @@ LEAVES.forEach((l, i) => {
   leaveBody.appendChild(tr);
 });
 
+document.querySelectorAll("#leaves input").forEach(blockOperatorKeys);
+
 // ===== 计算 =====
 function calculate() {
   const totalPeriods = subjects.reduce((sum, s) => sum + num(s.periods), 0);
-  const secondTotal = subjects.reduce((sum, s) => sum + num(s.s2), 0);
-  const divisor = secondTotal === 0 ? 1 : 2;
 
   let points = 0;
   subjects.forEach((subject) => {
-    const rawAvg = (num(subject.s1) + num(subject.s2)) / divisor;
+    let rawAvg;
+    if (calcMode === "s1") {
+      rawAvg = num(subject.s1);
+    } else if (calcMode === "s2") {
+      rawAvg = num(subject.s2);
+    } else {
+      const divisor = subjects.some(s => s.s2 !== "") ? 2 : 1;
+      rawAvg = (num(subject.s1) + num(subject.s2)) / divisor;
+    }
     const avg = roundAvg(rawAvg);
     const pt = avg * num(subject.periods);
     points += pt;
@@ -981,10 +1083,16 @@ function calculate() {
   const avgRounded = roundAvg(average);
   $("avg").textContent = String(avgRounded);
   $("deduct").textContent = fmt(deduct);
-  $("final").textContent = fmt(avgRounded - deduct);
+  $("final").textContent = fmt(Math.round((avgRounded - deduct) * 100) / 100);
 }
 
-// ===== 本地保存 =====
+// ===== 本地保存（防抖） =====
+let saveTimer = null;
+function saveDebounced() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 300);
+}
+
 function save() {
   const leaveData = {};
   document.querySelectorAll("#leaves input").forEach((el) => {
@@ -1054,6 +1162,13 @@ const termsBody = $("termsBody");
 const agreeBtn = $("agreeBtn");
 const scrollHint = $("scrollHint");
 
+function hasAgreedTerms() {
+  try { return localStorage.getItem(TERMS_AGREED_KEY) === "1"; } catch (e) { return false; }
+}
+function markTermsAgreed() {
+  try { localStorage.setItem(TERMS_AGREED_KEY, "1"); } catch (e) {}
+}
+
 function checkTermsScroll() {
   const scrollable = termsBody.scrollHeight > termsBody.clientHeight + 2;
   if (!scrollable) {
@@ -1075,7 +1190,20 @@ function resetTermsState() {
   termsBody.scrollTop = 0;
   $("termsMsg").textContent = "";
   agreeBtn.disabled = true;
+  exitRejectedState();
   requestAnimationFrame(checkTermsScroll);
+}
+
+function enterRejectedState() {
+  $("termsBtns").style.display = "none";
+  scrollHint.style.display = "none";
+  $("termsMsg").textContent = "";
+  $("termsRejected").style.display = "block";
+}
+function exitRejectedState() {
+  $("termsBtns").style.display = "";
+  scrollHint.style.display = "";
+  $("termsRejected").style.display = "none";
 }
 
 function showTerms() {
@@ -1085,9 +1213,7 @@ function showTerms() {
 }
 function hideTerms() {
   termsMask.classList.remove("show");
-  if (!document.querySelector(".action-dialog-mask.show, .subject-picker-mask.show")) {
-    document.body.classList.remove("locked");
-  }
+  if (!anyModalOpen()) document.body.classList.remove("locked");
 }
 
 termsBody.addEventListener("scroll", checkTermsScroll);
@@ -1095,15 +1221,20 @@ window.addEventListener("resize", () => {
   if (termsMask.classList.contains("show")) checkTermsScroll();
 });
 
-agreeBtn.addEventListener("click", hideTerms);
-$("disagreeBtn").addEventListener("click", () => {
-  $("termsMsg").textContent = "需要同意使用须知后才能使用本计算器。";
+agreeBtn.addEventListener("click", () => {
+  markTermsAgreed();
+  hideTerms();
+});
+$("disagreeBtn").addEventListener("click", enterRejectedState);
+$("termsRetryBtn").addEventListener("click", () => {
+  exitRejectedState();
+  resetTermsState();
 });
 $("termsLink").addEventListener("click", showTerms);
 
-showTerms();
+if (!hasAgreedTerms()) showTerms();
 
-// ===== 成绩表输入、请假输入与清空 =====
+// ===== 成绩表输入、请假输入 =====
 scoreBody.addEventListener("input", (event) => {
   const row = event.target.closest("tr[data-subject-id]");
   if (!row) return;
@@ -1120,13 +1251,13 @@ scoreBody.addEventListener("input", (event) => {
   }
 
   calculate();
-  save();
+  saveDebounced();
 });
 
 document.addEventListener("input", (event) => {
   if (event.target.closest("#leaves")) {
     calculate();
-    save();
+    saveDebounced();
   }
 });
 
@@ -1141,9 +1272,7 @@ function openMask(el) {
 }
 function closeMask(el) {
   el.classList.remove("show");
-  if (!document.querySelector(".action-dialog-mask.show, #termsMask.show, .subject-picker-mask.show")) {
-    document.body.classList.remove("locked");
-  }
+  if (!anyModalOpen()) document.body.classList.remove("locked");
 }
 function bindMask(el) {
   el.addEventListener("click", (e) => {
@@ -1159,23 +1288,43 @@ const resetConfirmMask = $("resetConfirmMask");
 const deleteSubjectMask = $("deleteSubjectMask");
 [clearScoresMask, clearScoresConfirmMask, clearLeavesMask, resetMask, resetConfirmMask, deleteSubjectMask].forEach(bindMask);
 
-// ===== 清空成绩 =====
+// ===== ESC 关闭弹窗 =====
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (pickerMask.classList.contains("show")) { closeSubjectPicker(); return; }
+  const dialogs = [...document.querySelectorAll(".action-dialog-mask.show")];
+  if (dialogs.length) {
+    const topDialog = dialogs[dialogs.length - 1];
+    if (topDialog === deleteSubjectMask) pendingDeleteSubjectId = null;
+    if (topDialog === clearScoresConfirmMask) pendingClearScoresType = null;
+    if (topDialog === resetConfirmMask) pendingResetType = null;
+    closeMask(topDialog);
+    return;
+  }
+  if (termsMask.classList.contains("show")) hideTerms();
+});
+
+// ===== 清空成绩（上/下/全部/全清） =====
 $("clearScores").addEventListener("click", () => openMask(clearScoresMask));
 $("clearScoresCancel").addEventListener("click", () => closeMask(clearScoresMask));
 
-let pendingClearScoresType = null;
+let pendingClearScoresType = null; // "s1" | "s2" | "only" | "all"
 
 function requestClearScores(type) {
   pendingClearScoresType = type;
-  if (type === "only") {
-    $("clearScoresConfirmText").textContent = "确定只清空所有成绩数据吗？科目名称和周节数会保留。";
-  } else {
-    $("clearScoresConfirmText").textContent = "确定清空成绩、科目名称和周节数吗？当前行数会保留，但所有内容都变为空。";
-  }
+  const texts = {
+    s1:   "确定只清空所有科目的上半年成绩吗？下半年、科目名称和周节数会保留。",
+    s2:   "确定只清空所有科目的下半年成绩吗？上半年、科目名称和周节数会保留。",
+    only: "确定清空所有成绩（上半年 + 下半年）吗？科目名称和周节数会保留。",
+    all:  "确定清空成绩、科目名称和周节数吗？当前行数会保留，但所有内容都变为空。"
+  };
+  $("clearScoresConfirmText").textContent = texts[type] || "确定执行此清空操作吗？";
   closeMask(clearScoresMask);
   openMask(clearScoresConfirmMask);
 }
 
+$("clearScoresS1").addEventListener("click", () => requestClearScores("s1"));
+$("clearScoresS2").addEventListener("click", () => requestClearScores("s2"));
 $("clearScoresOnly").addEventListener("click", () => requestClearScores("only"));
 $("clearScoresAll").addEventListener("click", () => requestClearScores("all"));
 
@@ -1188,7 +1337,11 @@ $("clearScoresConfirmBtn").addEventListener("click", () => {
   const type = pendingClearScoresType;
   pendingClearScoresType = null;
   closeMask(clearScoresConfirmMask);
-  if (type === "only") {
+  if (type === "s1") {
+    subjects.forEach((s) => { s.s1 = ""; });
+  } else if (type === "s2") {
+    subjects.forEach((s) => { s.s2 = ""; });
+  } else if (type === "only") {
     subjects.forEach((s) => { s.s1 = ""; s.s2 = ""; });
   } else if (type === "all") {
     subjects.forEach((s) => {
@@ -1273,8 +1426,9 @@ $("deleteSubjectConfirm").addEventListener("click", () => {
   if (id != null) doDeleteSubject(id);
 });
 
-// 初始化
+// ===== 初始化 =====
 load();
+loadCalcMode();
 renderSubjects();
 calculate();
 </script>
