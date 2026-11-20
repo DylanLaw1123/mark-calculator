@@ -169,6 +169,17 @@ details[open] > summary { margin-bottom: 12px; }
 
 footer { text-align: center; padding: 0 16px 40px; font-size: .82rem; color: var(--muted); }
 footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+.footer-main { line-height: 1.6; }
+.footer-version { margin-top: 4px; font-size: .76rem; opacity: .7; }
+
+
+#versionMask {
+  position: fixed; inset: 0; z-index: 100; padding: 16px;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .55);
+}
+#versionMask.show { display: flex; }
+.version-modal-body { min-height: 100px; }
 
 #termsMask {
   position: fixed; inset: 0; z-index: 100; padding: 16px;
@@ -229,6 +240,8 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   padding: 4px 0 0;
   margin: 0;
 }
+
+.score-s2-hidden .score-s2-column { display: none !important; }
 
 /* 计算范围选择 */
 .calc-mode {
@@ -367,6 +380,18 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   .picker-list { gap: 6px; }
   .picker-item { padding: 7px 13px; font-size: .85rem; }
 }
+
+.version-link {
+  font-size: .78rem;
+  opacity: .75;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.version-link:hover { opacity: 1; }
+
+
+
+
 </style>
 </head>
 <body>
@@ -381,10 +406,15 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
       <h2>各科成绩</h2>
       <button id="clearScores" class="table-clear-btn" type="button">清空成绩</button>
     </div>
+    <div class="calc-mode">
+      <span>计算范围</span>
+      <label><input type="radio" name="calcMode" value="s1"> 上半年</label>
+      <label><input type="radio" name="calcMode" value="auto" checked> 全年</label>
+    </div>
     <div class="table-wrap">
       <table id="scores">
         <thead>
-          <tr><th>科目</th><th>上半年</th><th>下半年</th><th>平均</th><th>周节数</th><th>积分</th><th>操作</th></tr>
+          <tr><th>科目</th><th>上半年</th><th class="score-s2-column">下半年</th><th>平均</th><th>周节数</th><th>积分</th><th>操作</th></tr>
         </thead>
         <tbody></tbody>
         <tfoot>
@@ -418,12 +448,6 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   </section>
 
   <section class="card result">
-    <div class="calc-mode">
-      <span>计算范围</span>
-      <label><input type="radio" name="calcMode" value="auto" checked> 自动</label>
-      <label><input type="radio" name="calcMode" value="s1"> 只算上半年</label>
-      <label><input type="radio" name="calcMode" value="s2"> 只算下半年</label>
-    </div>
     <div class="row"><span>平均分数</span><strong id="avg">0.00</strong></div>
     <div class="row"><span>缺席扣分</span><strong id="deduct">0.00</strong></div>
     <div class="row final"><span>实得分数</span><strong id="final">0.00</strong></div>
@@ -433,9 +457,15 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 </main>
 
 <footer>
-  总平均分计算器 ·
-  <a id="termsLink">使用须知</a>
+  <div class="footer-main">
+    总平均分计算器 ·
+    <a id="termsLink">使用须知</a>
+    · <a id="versionLink" class="version-link" role="button" tabindex="0">版本</a>
+  </div>
+  <div class="footer-version">Version 2.6.7</div>
 </footer>
+
+
 
 <!-- 清空成绩：选择范围（含上/下半年） -->
 <div id="clearScoresMask" class="action-dialog-mask" role="dialog" aria-modal="true" aria-labelledby="clearScoresTitle">
@@ -591,6 +621,27 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   </div>
 </div>
 
+<!-- 版本信息弹窗 -->
+<div id="versionMask" role="dialog" aria-modal="true" aria-labelledby="versionTitle">
+  <div class="terms">
+    <h3 id="versionTitle">版本信息</h3>
+    <div class="terms-body version-modal-body">
+      <div class="scope">已经是最新版本</div>
+      <p style="margin:12px 0 4px; text-align:center; color:var(--muted);">
+        当前版本：<b style="color:var(--text);">Version 2.6.7</b>
+      </p>
+    </div>
+    <div class="terms-foot">
+      <div class="terms-btns">
+        <button id="versionCloseBtn" type="button"
+          style="flex:1; color:#fff; background:var(--accent); border:1px solid var(--accent);">
+          确定
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== 科目选择面板 ===== -->
 <div id="subjectPickerMask" class="subject-picker-mask" role="dialog" aria-modal="true" aria-labelledby="subjectPickerTitle">
   <div class="subject-picker">
@@ -665,13 +716,19 @@ const scoreBody = $("scores").querySelector("tbody");
 const leaveBody = $("leaves").querySelector("tbody");
 
 // ===== 计算范围（上半年 / 下半年 / 自动） =====
+function updateCalcModeUI() {
+  $("scores").classList.toggle("score-s2-hidden", calcMode === "s1");
+}
+
 function loadCalcMode() {
   try {
     const v = localStorage.getItem(CALC_MODE_KEY);
-    if (v === "auto" || v === "s1" || v === "s2") calcMode = v;
+    if (v === "s1") calcMode = "s1";
+    else if (v === "auto" || v === "s2") calcMode = "auto";
   } catch (e) {}
   const radio = document.querySelector(`input[name="calcMode"][value="${calcMode}"]`);
   if (radio) radio.checked = true;
+  updateCalcModeUI();
 }
 
 document.querySelectorAll('input[name="calcMode"]').forEach((r) => {
@@ -679,6 +736,7 @@ document.querySelectorAll('input[name="calcMode"]').forEach((r) => {
     if (!r.checked) return;
     calcMode = r.value;
     try { localStorage.setItem(CALC_MODE_KEY, calcMode); } catch (e) {}
+    updateCalcModeUI();
     calculate();
   });
 });
@@ -850,7 +908,7 @@ pickerSearchInput.addEventListener("keydown", (e) => {
 // ===== 通用：是否有弹窗打开 =====
 function anyModalOpen() {
   return !!document.querySelector(
-    ".action-dialog-mask.show, #termsMask.show, .subject-picker-mask.show"
+    ".action-dialog-mask.show, #termsMask.show, #versionMask.show, .subject-picker-mask.show"
   );
 }
 
@@ -904,6 +962,7 @@ function renderSubjects() {
     s1Cell.appendChild(s1Input);
 
     const s2Cell = document.createElement("td");
+    s2Cell.className = "score-s2-column";
     const s2Input = document.createElement("input");
     s2Input.type = "number";
     s2Input.min = "0";
@@ -1252,6 +1311,26 @@ $("termsRetryBtn").addEventListener("click", () => {
   resetTermsState();
 });
 $("termsLink").addEventListener("click", showTerms);
+const versionMask = $("versionMask");
+function showVersionInfo() {
+  versionMask.classList.add("show");
+  document.body.classList.add("locked");
+}
+function hideVersionInfo() {
+  versionMask.classList.remove("show");
+  if (!anyModalOpen()) document.body.classList.remove("locked");
+}
+$("versionLink").addEventListener("click", showVersionInfo);
+$("versionLink").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    showVersionInfo();
+  }
+});
+$("versionCloseBtn").addEventListener("click", hideVersionInfo);
+versionMask.addEventListener("click", (event) => {
+  if (event.target === versionMask) hideVersionInfo();
+});
 
 if (!hasAgreedTerms()) showTerms();
 
@@ -1323,7 +1402,8 @@ document.addEventListener("keydown", (e) => {
     closeMask(topDialog);
     return;
   }
-  if (termsMask.classList.contains("show")) hideTerms();
+  if (termsMask.classList.contains("show")) { hideTerms(); return; }
+  if (versionMask.classList.contains("show")) hideVersionInfo();
 });
 
 // ===== 清空成绩（上/下/全部/全清） =====
