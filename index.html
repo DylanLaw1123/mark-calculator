@@ -14,16 +14,19 @@ try {
 :root {
   --bg: #f5f6f8; --card: #fff; --text: #1f2430; --muted: #6b7280;
   --line: #e5e7eb; --accent: #2563eb; --accent-soft: #e8efff; --danger: #dc2626;
+  --warn: #d97706; --warn-soft: #fef3c7;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #12141a; --card: #1b1e27; --text: #e8eaf0; --muted: #98a0b3;
     --line: #2d3240; --accent: #6b9bff; --accent-soft: #232b44; --danger: #f87171;
+    --warn: #fbbf24; --warn-soft: #3a2e12;
   }
 }
 :root[data-theme="dark"] {
   --bg: #12141a; --card: #1b1e27; --text: #e8eaf0; --muted: #98a0b3;
   --line: #2d3240; --accent: #6b9bff; --accent-soft: #232b44; --danger: #f87171;
+  --warn: #fbbf24; --warn-soft: #3a2e12;
 }
 * { box-sizing: border-box; }
 body {
@@ -45,6 +48,7 @@ main { max-width: 900px; margin: 0 auto; padding: 8px 16px 24px; display: grid; 
   margin-bottom: 12px;
 }
 .card-head h2 { margin: 0; }
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .table-clear-btn {
   font: inherit; font-size: .82rem; cursor: pointer;
   color: var(--muted); background: transparent;
@@ -52,18 +56,44 @@ main { max-width: 900px; margin: 0 auto; padding: 8px 16px 24px; display: grid; 
   white-space: nowrap;
 }
 .table-clear-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.table-clear-btn.neutral:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 600px; }
 th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th { color: var(--muted); font-weight: 500; font-size: .85rem; }
 td:first-child, th:first-child { text-align: left; }
 tfoot td { font-weight: 600; border-bottom: none; }
+/* 合计行：标签靠左，数字居中并对应各自栏位 */
+#scores tfoot td:first-child { text-align: left; }
+#scores tfoot td:not(:first-child) { text-align: center; }
 input, select {
   font: inherit; color: var(--text); background: var(--bg);
   border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
 }
 td input { width: 84px; text-align: center; }
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+/* 缺少数据提醒 */
+input.field-warn {
+  border-color: var(--warn) !important;
+  background: var(--warn-soft) !important;
+}
+input.field-warn::placeholder { color: var(--warn); opacity: .8; }
+tr.has-warn td:first-child { position: relative; }
+tr.has-warn td:first-child::before {
+  content: "!";
+  position: absolute; left: -4px; top: 50%; transform: translateY(-50%);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--warn); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 14px; text-align: center;
+}
+.warn-summary {
+  display: none;
+  margin: 10px 0 0; padding: 8px 12px;
+  font-size: .82rem; color: var(--warn);
+  background: var(--warn-soft); border-radius: 8px;
+}
+.warn-summary.show { display: block; }
 
 .subject-name {
   width: 180px; text-align: left;
@@ -90,8 +120,10 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
   color: var(--text); background: transparent; border: 0; border-radius: 5px;
   cursor: pointer; white-space: nowrap;
 }
-.row-action-menu button:hover { background: var(--accent-soft); }
+.row-action-menu button:hover:not(:disabled) { background: var(--accent-soft); }
+.row-action-menu button:disabled { opacity: .4; cursor: not-allowed; }
 .row-action-menu button.delete { color: var(--danger); }
+.row-action-menu .menu-sep { height: 1px; background: var(--line); margin: 3px 4px; }
 .hint { margin: 12px 0 0; font-size: .82rem; color: var(--muted); }
 
 .action-dialog-mask {
@@ -161,11 +193,41 @@ details[open] > summary { margin-bottom: 12px; }
 .result .row strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .result .final { border-bottom: none; background: var(--accent-soft); padding: 12px; border-radius: 8px; margin-top: 8px; }
 .result .final strong { font-size: 2rem; color: var(--accent); }
-#reset {
-  margin-top: 12px; font: inherit; cursor: pointer; color: var(--danger);
-  background: transparent; border: 1px solid var(--danger); border-radius: 6px; padding: 6px 14px;
+
+/* ===== 结果区右侧清空按钮 ===== */
+.result-note-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-top: 10px;
 }
-#reset:hover { background: var(--danger); color: #fff; }
+.result-note-row .hint { margin: 0; }
+.result-reset-btn {
+  flex: 0 0 auto; font: inherit; font-size: .82rem; cursor: pointer;
+  color: var(--danger); background: transparent;
+  border: 1px solid var(--danger); border-radius: 6px; padding: 5px 12px;
+  white-space: nowrap;
+}
+.result-reset-btn:hover { background: var(--danger); color: #fff; }
+.bottom-actions {
+  display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;
+}
+.bottom-actions .action-btn {
+  font: inherit; font-size: .95rem; cursor: pointer; font-weight: 600;
+  padding: 10px 22px; border-radius: 8px; white-space: nowrap;
+  transition: filter .15s, background .15s, color .15s;
+}
+.bottom-actions .print-action {
+  color: #fff; background: var(--accent); border: 1px solid var(--accent);
+}
+.bottom-actions .print-action:hover { filter: brightness(1.08); }
+.bottom-actions .pdf-action {
+  color: var(--accent); background: transparent; border: 1px solid var(--accent);
+}
+.bottom-actions .pdf-action:hover { background: var(--accent-soft); }
+@media (max-width: 480px) {
+  .result-note-row { align-items: flex-start; }
+  .bottom-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .bottom-actions .action-btn { width: 100%; padding: 10px 8px; }
+}
 
 footer { text-align: center; padding: 0 16px 40px; font-size: .82rem; color: var(--muted); }
 footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
@@ -242,16 +304,20 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 }
 
 .score-s2-hidden .score-s2-column { display: none !important; }
+.score-s2-hidden .score-s2-column,
+.leave-s2-hidden .leave-s2-column { display: none !important; }
 
-/* 计算范围选择 */
-.calc-mode {
+/* 计算范围选择 —— 独立显示在卡片外面 */
+.calc-mode-bar {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding-bottom: 10px; margin-bottom: 4px;
-  border-bottom: 1px solid var(--line);
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 16px;
   font-size: .9rem; color: var(--muted);
 }
-.calc-mode label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text); }
-.calc-mode input { accent-color: var(--accent); }
+.calc-mode-bar > span { font-weight: 600; color: var(--text); }
+.calc-mode-bar label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text); }
+.calc-mode-bar input { accent-color: var(--accent); }
+.calc-mode-bar .mode-note { font-size: .78rem; color: var(--muted); margin-left: auto; }
 
 /* 科目选择面板 */
 .subject-picker-mask {
@@ -379,6 +445,9 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   .subject-picker { max-width: 100%; }
   .picker-list { gap: 6px; }
   .picker-item { padding: 7px 13px; font-size: .85rem; }
+  .calc-mode-bar .mode-note { display: none; }
+  .bottom-actions .action-group { flex-direction: column; align-items: stretch; }
+  .bottom-actions .action-btn { width: 100%; }
 }
 
 .version-link {
@@ -389,9 +458,6 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 }
 .version-link:hover { opacity: 1; }
 
-
-
-
 </style>
 </head>
 <body>
@@ -401,15 +467,18 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 </header>
 
 <main>
+  <!-- 计算范围（独立显示在卡片外面） -->
+  <div class="calc-mode-bar">
+    <span>计算范围</span>
+    <label><input type="radio" name="calcMode" value="s1"> 上半年</label>
+    <label><input type="radio" name="calcMode" value="auto" checked> 全年</label>
+    <span class="mode-note">成绩与请假统计会同时切换</span>
+  </div>
+
   <section class="card">
     <div class="card-head">
       <h2>各科成绩</h2>
       <button id="clearScores" class="table-clear-btn" type="button">清空成绩</button>
-    </div>
-    <div class="calc-mode">
-      <span>计算范围</span>
-      <label><input type="radio" name="calcMode" value="s1"> 上半年</label>
-      <label><input type="radio" name="calcMode" value="auto" checked> 全年</label>
     </div>
     <div class="table-wrap">
       <table id="scores">
@@ -418,11 +487,12 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
         </thead>
         <tbody></tbody>
         <tfoot>
-          <tr><td colspan="4">合计</td><td id="totalPeriods">0</td><td id="totalPoints">0</td></tr>
+          <tr><td id="totalLabel" colspan="4">合计</td><td id="totalPeriods">0</td><td id="totalPoints">0</td><td></td></tr>
         </tfoot>
       </table>
     </div>
     <p class="hint">点击科目输入框会弹出预设科目选择面板，可直接点选，也可在搜索框输入自定义科目名称。已选定的科目再次点击可以重新选择或修改；已经被其他行选过的预设科目会置灰显示，不可重复选择。</p>
+    <p class="warn-summary" id="warnSummary"></p>
   </section>
 
   <section class="card">
@@ -435,7 +505,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
       <div class="table-wrap">
         <table id="leaves">
           <thead>
-            <tr><th>类别</th><th>上半年</th><th>下半年</th><th>总数</th><th>计算节数</th><th>每节扣分</th><th>小计</th></tr>
+            <tr><th>类别</th><th>上半年</th><th class="leave-s2-column">下半年</th><th>总数</th><th>计算节数</th><th>每节扣分</th><th>小计</th></tr>
           </thead>
           <tbody></tbody>
           <tfoot>
@@ -443,7 +513,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
           </tfoot>
         </table>
       </div>
-      <p class="hint">病假累计超过 20 节的部分才扣分；丧假、公假、特假、特病不扣分。</p>
+      <p class="hint">病假累计超过 20 节的部分才扣分；丧假、公假、特假、特病不扣分。当前请假统计范围与上方「计算范围」一致。</p>
     </details>
   </section>
 
@@ -451,9 +521,12 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
     <div class="row"><span>平均分数</span><strong id="avg">0.00</strong></div>
     <div class="row"><span>缺席扣分</span><strong id="deduct">0.00</strong></div>
     <div class="row final"><span>实得分数</span><strong id="final">0.00</strong></div>
-    <p class="hint">误差为 ±3</p>
-    <button id="reset" type="button">清空全部</button>
+    <div class="result-note-row">
+      <p class="hint">误差为 ±3</p>
+      <button id="reset" class="result-reset-btn" type="button">清空全部</button>
+    </div>
   </section>
+
 </main>
 
 <footer>
@@ -462,7 +535,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
     <a id="termsLink">使用须知</a>
     · <a id="versionLink" class="version-link" role="button" tabindex="0">版本</a>
   </div>
-  <div class="footer-version">Version 2.6.7</div>
+  <div class="footer-version">Version 2.8.1</div>
 </footer>
 
 
@@ -587,11 +660,11 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
           </ul>
         </li>
         <li><b>上半年成绩：</b>请在各科「上半年」栏填写。如果下半年成绩尚未公布或没有下半年成绩，可将下半年栏全部留空，系统会直接使用上半年成绩计算平均。</li>
-        <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均（四舍五入到整数），因此请尽量把每一科的上下半年成绩填写完整，再查看总平均分。</li>
-        <li><b>计算范围：</b>请根据需要选择「上半年」或「全年」。
+        <li><b>下半年成绩：</b>如果已经有下半年成绩，请在每一科的「下半年」栏填写。系统会逐科判断：该科有下半年成绩才按（上半年＋下半年）÷ 2 计算平均，否则只用上半年成绩。</li>
+        <li><b>计算范围：</b>页面顶部可切换「上半年」或「全年」。
           <ul style="margin-top: 6px; padding-left: 1.2em; font-size: .9em; line-height: 1.6;">
-            <li><b>上半年：</b>只使用各科上半年成绩计算总平均分，并隐藏下半年成绩栏。</li>
-            <li><b>全年：</b>使用全年成绩计算。若所有科目的下半年成绩都留空，系统只按上半年成绩计算；只要有任何一科填写了下半年成绩，系统就会按（上半年＋下半年）÷ 2 计算各科平均。因此选择全年时，请尽量填写完整的上下半年成绩。</li>
+            <li><b>上半年：</b>成绩只使用上半年数据，并隐藏下半年成绩栏；请假只统计上半年数据，并隐藏下半年请假栏。</li>
+            <li><b>全年：</b>使用全年数据。成绩逐科判断：该科填了下半年成绩就按（上半年＋下半年）÷ 2 计算，没填就只用上半年成绩；请假统计上半年 + 下半年总数。</li>
           </ul>
         </li>
         <li><b>请假 / 缺席（节数）：</b>此项可填可不填，没有请假或缺席可直接留空。如需填写，一律以<b>节数</b>计算，请按节数填写，不要按天数填写。</li>
@@ -634,7 +707,7 @@ footer a { color: var(--accent); cursor: pointer; text-decoration: underline; }
     <div class="terms-body version-modal-body">
       <div class="scope">已经是最新版本</div>
       <p style="margin:12px 0 4px; text-align:center; color:var(--muted);">
-        当前版本：<b style="color:var(--text);">Version 2.6.7</b>
+        当前版本：<b style="color:var(--text);">Version 2.8.1</b>
       </p>
     </div>
     <div class="terms-foot">
@@ -716,21 +789,26 @@ let subjects = DEFAULT_SUBJECTS.map((s) => ({
   id: nextSubjectId++, name: s.name, periods: s.periods, s1: "", s2: ""
 }));
 
-let calcMode = "auto"; // "auto" | "s1" | "s2"
+let calcMode = "auto"; // "auto" | "s1"
 
 const scoreBody = $("scores").querySelector("tbody");
 const leaveBody = $("leaves").querySelector("tbody");
 
-// ===== 计算范围（上半年 / 下半年 / 自动） =====
+// ===== 计算范围（上半年 / 全年） =====
 function updateCalcModeUI() {
   $("scores").classList.toggle("score-s2-hidden", calcMode === "s1");
+  $("leaves").classList.toggle("leave-s2-hidden", calcMode === "s1");
+
+  // 上半年模式会隐藏「下半年」栏，因此合计标签也要少跨一格，
+  // 确保周节数、积分的合计数字始终落在各自栏位下方。
+  $("totalLabel").colSpan = calcMode === "s1" ? 3 : 4;
 }
 
 function loadCalcMode() {
   try {
     const v = localStorage.getItem(CALC_MODE_KEY);
     if (v === "s1") calcMode = "s1";
-    else if (v === "auto" || v === "s2") calcMode = "auto";
+    else calcMode = "auto";
   } catch (e) {}
   const radio = document.querySelector(`input[name="calcMode"][value="${calcMode}"]`);
   if (radio) radio.checked = true;
@@ -923,7 +1001,7 @@ function renderSubjects() {
   scoreBody.innerHTML = "";
   document.querySelectorAll(".row-action-menu").forEach((menu) => menu.remove());
 
-  subjects.forEach((subject) => {
+  subjects.forEach((subject, index) => {
     const tr = document.createElement("tr");
     tr.dataset.subjectId = subject.id;
 
@@ -1033,6 +1111,18 @@ function renderSubjects() {
       menu.style.top = `${top}px`;
     });
 
+    const moveUp = document.createElement("button");
+    moveUp.type = "button";
+    moveUp.textContent = "上移一行";
+    moveUp.disabled = index === 0;
+    moveUp.addEventListener("click", () => moveSubject(subject.id, -1));
+
+    const moveDown = document.createElement("button");
+    moveDown.type = "button";
+    moveDown.textContent = "下移一行";
+    moveDown.disabled = index === subjects.length - 1;
+    moveDown.addEventListener("click", () => moveSubject(subject.id, 1));
+
     const addAbove = document.createElement("button");
     addAbove.type = "button";
     addAbove.textContent = "在上面加一行";
@@ -1044,13 +1134,16 @@ function renderSubjects() {
     addBelow.setAttribute("aria-label", `在「${subject.name || "未命名科目"}」下面加一行`);
     addBelow.addEventListener("click", () => insertSubject(subject.id, "below"));
 
+    const sep = document.createElement("div");
+    sep.className = "menu-sep";
+
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "delete";
     remove.textContent = "删除这一行";
     remove.addEventListener("click", () => requestDeleteSubject(subject.id));
 
-    menu.append(addAbove, addBelow, remove);
+    menu.append(moveUp, moveDown, sep, addAbove, addBelow, sep.cloneNode(true), remove);
     actionCell.append(actionButton);
     document.body.appendChild(menu);
     tr.append(nameCell, s1Cell, s2Cell, avgCell, periodsCell, pointsCell, actionCell);
@@ -1075,6 +1168,17 @@ function insertSubject(targetId, position) {
     const nameInput = newRow.querySelector('[data-field="name"]');
     if (nameInput) nameInput.focus();
   }
+}
+
+// ===== 上移 / 下移 =====
+function moveSubject(subjectId, direction) {
+  const index = subjects.findIndex((s) => s.id === subjectId);
+  if (index < 0) return;
+  const target = index + direction;
+  if (target < 0 || target >= subjects.length) return;
+  [subjects[index], subjects[target]] = [subjects[target], subjects[index]];
+  renderSubjects();
+  save();
 }
 
 let pendingDeleteSubjectId = null;
@@ -1113,7 +1217,7 @@ LEAVES.forEach((l, i) => {
   tr.innerHTML = `
     <td>${l.name}</td>
     <td><input type="number" min="0" step="any" data-k="l1-${i}"></td>
-    <td><input type="number" min="0" step="any" data-k="l2-${i}"></td>
+    <td class="leave-s2-column"><input type="number" min="0" step="any" data-k="l2-${i}"></td>
     <td id="lt-${i}">0</td>
     <td id="lc-${i}">0</td>
     <td>${l.rate ? l.rate : "不扣分"}</td>
@@ -1122,6 +1226,45 @@ LEAVES.forEach((l, i) => {
 });
 
 document.querySelectorAll("#leaves input").forEach(blockOperatorKeys);
+
+// ===== 缺少数据检查 =====
+function checkMissingData() {
+  const warns = [];
+  scoreBody.querySelectorAll("tr[data-subject-id]").forEach((row) => {
+    const subject = subjects.find((s) => s.id === Number(row.dataset.subjectId));
+    if (!subject) return;
+    const s1Input = row.querySelector('[data-field="s1"]');
+    const s2Input = row.querySelector('[data-field="s2"]');
+    const periodsInput = row.querySelector('[data-field="periods"]');
+    const hasScore = String(subject.s1).trim() !== "" || String(subject.s2).trim() !== "";
+    const hasPeriods = Number(subject.periods) > 0;
+
+    let warnS1 = false, warnPeriods = false;
+    if (hasScore && !hasPeriods) {
+      warnPeriods = true;
+    }
+    if (hasPeriods && String(subject.s1).trim() === "" && calcMode === "auto") {
+      warnS1 = true;
+    }
+    s1Input.classList.toggle("field-warn", warnS1);
+    s2Input.classList.remove("field-warn");
+    periodsInput.classList.toggle("field-warn", warnPeriods);
+    row.classList.toggle("has-warn", warnS1 || warnPeriods);
+
+    const name = subject.name || "未命名科目";
+    if (warnPeriods) warns.push(`「${name}」填了成绩但未填周节数`);
+    if (warnS1) warns.push(`「${name}」填了周节数但上半年成绩为空`);
+  });
+
+  const summary = $("warnSummary");
+  if (warns.length) {
+    summary.textContent = "⚠ 提醒：" + warns.slice(0, 5).join("；") + (warns.length > 5 ? `；等共 ${warns.length} 项` : "");
+    summary.classList.add("show");
+  } else {
+    summary.classList.remove("show");
+    summary.textContent = "";
+  }
+}
 
 // ===== 计算 =====
 function calculate() {
@@ -1132,11 +1275,9 @@ function calculate() {
     let rawAvg;
     if (calcMode === "s1") {
       rawAvg = num(subject.s1);
-    } else if (calcMode === "s2") {
-      rawAvg = num(subject.s2);
     } else {
-      const divisor = subjects.some(s => s.s2 !== "") ? 2 : 1;
-      rawAvg = (num(subject.s1) + num(subject.s2)) / divisor;
+      const hasS2 = String(subject.s2).trim() !== "";
+      rawAvg = hasS2 ? (num(subject.s1) + num(subject.s2)) / 2 : num(subject.s1);
     }
     const avg = roundAvg(rawAvg);
     const pt = avg * num(subject.periods);
@@ -1153,10 +1294,12 @@ function calculate() {
   $("totalPeriods").textContent = fmt(totalPeriods).replace(/\.00$/, "");
   $("totalPoints").textContent = fmt(points);
 
+  // 请假统计：计算范围 = 上半年 时只统计 l1；= 全年 时统计 l1 + l2
   let deduct = 0;
   LEAVES.forEach((l, i) => {
-    const total = num(document.querySelector(`[data-k="l1-${i}"]`).value) +
-                  num(document.querySelector(`[data-k="l2-${i}"]`).value);
+    const l1 = num(document.querySelector(`[data-k="l1-${i}"]`).value);
+    const l2 = num(document.querySelector(`[data-k="l2-${i}"]`).value);
+    const total = calcMode === "s1" ? l1 : (l1 + l2);
     const counted = l.free ? Math.max(total - l.free, 0) : total;
     const sub = l.rate * counted;
     deduct += sub;
@@ -1170,6 +1313,8 @@ function calculate() {
   $("avg").textContent = String(avgRounded);
   $("deduct").textContent = fmt(deduct);
   $("final").textContent = fmt(Math.round((avgRounded - deduct) * 100) / 100);
+
+  checkMissingData();
 }
 
 // ===== 本地保存（防抖） =====
